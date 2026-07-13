@@ -81,15 +81,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Poliss — Cleanup Operations" },
+      { name: "description", content: "Poliss helps government teams, NGOs, and cleanup operators create tasks, assign collectors, review proof, and generate operational reports." },
+      { name: "author", content: "Poliss" },
+      { property: "og:title", content: "Poliss — Cleanup Operations" },
+      { property: "og:description", content: "Operations dashboard for municipal and NGO waste collection teams." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
-    ],
     links: [
       {
         rel: "stylesheet",
