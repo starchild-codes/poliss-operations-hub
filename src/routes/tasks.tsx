@@ -70,9 +70,11 @@ function TasksPage() {
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="open">Open</SelectItem>
               <SelectItem value="assigned">Assigned</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
               <SelectItem value="in_progress">In progress</SelectItem>
               <SelectItem value="submitted">Submitted</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="declined">Declined</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="canceled">Canceled</SelectItem>
             </SelectContent>
