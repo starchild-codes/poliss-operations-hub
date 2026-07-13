@@ -16,7 +16,7 @@ import { Plus, Filter, Search } from "lucide-react";
 export const Route = createFileRoute("/tasks")({
   head: () => ({
     meta: [
-      { title: "Tasks — Poliss" },
+      { title: "Tasks — Polis Systems" },
       { name: "description", content: "Create, assign, and track cleanup tasks across zones." },
     ],
   }),

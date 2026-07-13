@@ -14,7 +14,7 @@ import {
 export const Route = createFileRoute("/review")({
   head: () => ({
     meta: [
-      { title: "Review — Poliss" },
+      { title: "Review — Polis Systems" },
       { name: "description", content: "Review proof-of-work submissions from collectors." },
     ],
   }),

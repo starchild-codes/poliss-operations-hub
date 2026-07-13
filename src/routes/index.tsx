@@ -8,7 +8,7 @@ import { kpis, tasks, submissions, weeklyCompleted, zoneBreakdown } from "@/lib/
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Overview — Poliss" },
+      { title: "Overview — Polis Systems" },
       { name: "description", content: "At-a-glance view of cleanup operations, active tasks, and reviews." },
     ],
   }),

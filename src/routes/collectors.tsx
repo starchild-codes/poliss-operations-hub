@@ -9,7 +9,7 @@ import { Plus, Star } from "lucide-react";
 export const Route = createFileRoute("/collectors")({
   head: () => ({
     meta: [
-      { title: "Collectors — Poliss" },
+      { title: "Collectors — Polis Systems" },
       { name: "description", content: "Manage the field workforce collecting waste across zones." },
     ],
   }),
