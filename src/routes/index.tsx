@@ -20,27 +20,28 @@ import {
   XCircle,
 } from "lucide-react";
 import {
-  openTasksCount,
-  awaitingReviewCount,
-  approvedTasksCount,
+  computeOpenTasksCount,
+  computeAwaitingReviewCount,
+  computeApprovedTasksCount,
   activeCollectorsCount,
   totalCollectorsCount,
-  completionRate,
-  acceptanceRate,
+  computeCompletionRate,
+  computeAcceptanceRate,
   estimatedWasteCollectedKg,
-  overdueTasksCount,
-  cleanupActivity,
-  taskStatusBreakdown,
+  computeOverdueTasksCount,
+  computeCleanupActivity,
+  computeTaskStatusBreakdown,
   tasksNeedingReview,
   recentActivity,
-  cleanupLocations,
+  computeCleanupLocations,
   pendingRegistrationCount,
-  collectorsAssignedTodayCount,
+  computeCollectorsAssignedTodayCount,
   collectorsWithPendingSubmissionsCount,
-  topCollectors,
+  computeTopCollectors,
   formatFriendlyDateTime,
   type ActivityItem,
 } from "@/lib/mock-data";
+import { useTaskStore } from "@/lib/task-store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -66,6 +67,19 @@ const activityIcon: Record<ActivityItem["type"], React.ReactNode> = {
 };
 
 function OverviewPage() {
+  const { tasks } = useTaskStore();
+  const openTasksCount = computeOpenTasksCount(tasks);
+  const awaitingReviewCount = computeAwaitingReviewCount(tasks);
+  const approvedTasksCount = computeApprovedTasksCount(tasks);
+  const completionRate = computeCompletionRate(tasks);
+  const acceptanceRate = computeAcceptanceRate(tasks);
+  const overdueTasksCount = computeOverdueTasksCount(tasks);
+  const collectorsAssignedTodayCount = computeCollectorsAssignedTodayCount(tasks);
+  const taskStatusBreakdown = computeTaskStatusBreakdown(tasks);
+  const cleanupActivity = computeCleanupActivity(tasks);
+  const cleanupLocations = computeCleanupLocations(tasks);
+  const topCollectors = computeTopCollectors(tasks);
+
   const maxDailyValue = Math.max(1, ...cleanupActivity.flatMap((d) => [d.assigned, d.submitted, d.approved]));
   const totalStatusCount = Math.max(1, taskStatusBreakdown.reduce((s, x) => s + x.count, 0));
 

@@ -13,6 +13,31 @@ export type TaskStatus =
 export type Priority = "low" | "medium" | "high" | "urgent";
 export type WasteType = "Mixed Municipal" | "Plastic" | "Organic" | "Construction Debris" | "E-Waste" | "Sewage/Sludge";
 
+// The nature/category of the reported site, distinct from `wasteType` (the material collected).
+export type HotspotType =
+  | "Illegal dumping"
+  | "Plastic litter"
+  | "Organic waste"
+  | "Construction debris"
+  | "Market waste"
+  | "Drainage or canal waste"
+  | "Mixed waste"
+  | "Other";
+
+export const HOTSPOT_TYPES: HotspotType[] = [
+  "Illegal dumping",
+  "Plastic litter",
+  "Organic waste",
+  "Construction debris",
+  "Market waste",
+  "Drainage or canal waste",
+  "Mixed waste",
+  "Other",
+];
+
+export const PRIORITIES: Priority[] = ["low", "medium", "high", "urgent"];
+export const ZONES: Zone[] = ["North", "South", "East", "West", "Central"];
+
 export interface Collector {
   id: string;
   name: string;
@@ -31,16 +56,25 @@ export interface Collector {
 export interface Task {
   id: string;
   title: string;
+  description: string;
   location: string;
+  latitude: number;
+  longitude: number;
   zone: Zone;
   status: TaskStatus;
   priority: Priority;
+  hotspotType: HotspotType;
   assignee?: string;
+  createdBy: string;
   createdAt: string;
+  updatedAt: string;
   dueAt: string;
   wasteType: WasteType;
   /** Estimated kilograms of waste for this task. */
   estimatedWasteKg: number;
+  instructions?: string;
+  internalNotes?: string;
+  hasReferencePhoto?: boolean;
 }
 
 export interface Submission {
@@ -59,8 +93,18 @@ export interface Submission {
   note?: string;
 }
 
+export interface TaskEvent {
+  id: string;
+  taskId: string;
+  timestamp: string;
+  message: string;
+}
+
 // Fixed "now" for this pilot snapshot so derived metrics (overdue, daily trends) are deterministic.
 export const NOW = "2026-07-13 12:00";
+
+// The signed-in operator shown in the app header — used as the default task creator.
+export const CURRENT_OPERATOR = "Ananya Rao";
 
 // Base collector info. `tasksCompleted` and `approvalRate` are NOT hardcoded here — they are
 // derived below from the actual tasks/submissions in this pilot, so they always reconcile with
@@ -79,30 +123,32 @@ const collectorsBase: Omit<Collector, "tasksCompleted" | "approvalRate">[] = [
   { id: "C-110", name: "Meera Nair", phone: "+91 90210 66531", zone: "South", active: false, rating: 0, lastActiveAt: "—", registrationStatus: "pending" },
 ];
 
-export const tasks: Task[] = [
-  { id: "T-2041", title: "Garbage overflow near bus stand", location: "MG Road, Ward 12", zone: "Central", status: "submitted", priority: "high", assignee: "Deepak Yadav", createdAt: "2026-07-11 09:14", dueAt: "2026-07-13 18:00", wasteType: "Mixed Municipal", estimatedWasteKg: 180 },
-  { id: "T-2042", title: "Illegal dumping cleanup", location: "Yeshwanthpur Industrial Area", zone: "North", status: "in_progress", priority: "urgent", assignee: "Ravi Kumar", createdAt: "2026-07-12 07:22", dueAt: "2026-07-13 12:00", wasteType: "Construction Debris", estimatedWasteKg: 620 },
-  { id: "T-2043", title: "Clogged storm drain", location: "Koramangala 5th Block", zone: "South", status: "assigned", priority: "medium", assignee: "Anita Sharma", createdAt: "2026-07-12 10:03", dueAt: "2026-07-14 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 95 },
-  { id: "T-2044", title: "Construction debris removal", location: "Whitefield Main Road", zone: "East", status: "open", priority: "medium", createdAt: "2026-07-12 11:41", dueAt: "2026-07-15 12:00", wasteType: "Construction Debris", estimatedWasteKg: 340 },
-  { id: "T-2045", title: "Market waste pile-up", location: "KR Market, Stall Row 4", zone: "Central", status: "submitted", priority: "high", assignee: "Deepak Yadav", createdAt: "2026-07-11 18:32", dueAt: "2026-07-13 09:00", wasteType: "Organic", estimatedWasteKg: 210 },
-  { id: "T-2046", title: "Plastic dump near lake", location: "Bellandur Lake, East Bund", zone: "East", status: "rejected", priority: "high", assignee: "Mohammed Irfan", createdAt: "2026-07-10 14:00", dueAt: "2026-07-12 18:00", wasteType: "Plastic", estimatedWasteKg: 150 },
-  { id: "T-2047", title: "School premises cleanup", location: "Govt. School, Rajajinagar", zone: "West", status: "approved", priority: "low", assignee: "Sunita Patil", createdAt: "2026-07-09 08:15", dueAt: "2026-07-11 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 60 },
-  { id: "T-2048", title: "Temple street sweep", location: "Malleshwaram 8th Cross", zone: "North", status: "in_progress", priority: "low", assignee: "Kavita Joshi", createdAt: "2026-07-12 06:40", dueAt: "2026-07-14 12:00", wasteType: "Mixed Municipal", estimatedWasteKg: 40 },
-  { id: "T-2049", title: "Sewage overflow report", location: "HSR Layout Sector 2", zone: "South", status: "assigned", priority: "urgent", assignee: "Priya Menon", createdAt: "2026-07-12 12:20", dueAt: "2026-07-13 20:00", wasteType: "Sewage/Sludge", estimatedWasteKg: 500 },
-  { id: "T-2050", title: "Roadside garbage bin damaged", location: "Indiranagar 100ft Road", zone: "East", status: "open", priority: "low", createdAt: "2026-07-12 13:00", dueAt: "2026-07-16 12:00", wasteType: "Mixed Municipal", estimatedWasteKg: 25 },
-  { id: "T-2051", title: "Public toilet cleanup", location: "Majestic Bus Terminal", zone: "Central", status: "canceled", priority: "medium", createdAt: "2026-07-10 09:00", dueAt: "2026-07-12 18:00", wasteType: "Sewage/Sludge", estimatedWasteKg: 80 },
+// Raw task fields. `updatedAt` is filled in below (after `submissions` exists) from the latest
+// related submission event, so it is derived rather than hand-typed.
+const tasksBase: Omit<Task, "updatedAt">[] = [
+  { id: "T-2041", title: "Garbage overflow near bus stand", description: "Overflowing municipal bin attracting stray animals near the bus stand.", location: "MG Road, Ward 12", latitude: 12.9756, longitude: 77.6068, zone: "Central", status: "submitted", priority: "high", hotspotType: "Mixed waste", assignee: "Deepak Yadav", createdBy: "Ananya Rao", createdAt: "2026-07-11 09:14", dueAt: "2026-07-13 18:00", wasteType: "Mixed Municipal", estimatedWasteKg: 180, instructions: "Coordinate with the bus stand supervisor before starting.", hasReferencePhoto: true },
+  { id: "T-2042", title: "Illegal dumping cleanup", description: "Construction waste dumped overnight on the industrial access road.", location: "Yeshwanthpur Industrial Area", latitude: 13.0284, longitude: 77.5407, zone: "North", status: "in_progress", priority: "urgent", hotspotType: "Illegal dumping", assignee: "Ravi Kumar", createdBy: "Ananya Rao", createdAt: "2026-07-12 07:22", dueAt: "2026-07-13 12:00", wasteType: "Construction Debris", estimatedWasteKg: 620, instructions: "Requires a truck for debris removal; contact depot for scheduling." },
+  { id: "T-2043", title: "Clogged storm drain", description: "Storm drain blocked with plastic and silt, causing waterlogging after rain.", location: "Koramangala 5th Block", latitude: 12.9346, longitude: 77.6146, zone: "South", status: "assigned", priority: "medium", hotspotType: "Drainage or canal waste", assignee: "Anita Sharma", createdBy: "Ananya Rao", createdAt: "2026-07-12 10:03", dueAt: "2026-07-14 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 95 },
+  { id: "T-2044", title: "Construction debris removal", description: "Leftover rubble from a nearby renovation blocking the footpath.", location: "Whitefield Main Road", latitude: 12.9698, longitude: 77.7500, zone: "East", status: "open", priority: "medium", hotspotType: "Construction debris", createdBy: "Ananya Rao", createdAt: "2026-07-12 11:41", dueAt: "2026-07-15 12:00", wasteType: "Construction Debris", estimatedWasteKg: 340 },
+  { id: "T-2045", title: "Market waste pile-up", description: "Vegetable and organic waste piling up between market stalls.", location: "KR Market, Stall Row 4", latitude: 12.9634, longitude: 77.5785, zone: "Central", status: "submitted", priority: "high", hotspotType: "Market waste", assignee: "Deepak Yadav", createdBy: "Ananya Rao", createdAt: "2026-07-11 18:32", dueAt: "2026-07-13 09:00", wasteType: "Organic", estimatedWasteKg: 210, instructions: "Coordinate with stall owners for early-morning access." },
+  { id: "T-2046", title: "Plastic dump near lake", description: "Plastic bottles and packaging washed up along the lake bund.", location: "Bellandur Lake, East Bund", latitude: 12.9260, longitude: 77.6762, zone: "East", status: "rejected", priority: "high", hotspotType: "Plastic litter", assignee: "Mohammed Irfan", createdBy: "Ananya Rao", createdAt: "2026-07-10 14:00", dueAt: "2026-07-12 18:00", wasteType: "Plastic", estimatedWasteKg: 150, internalNotes: "Second attempt needed — resubmission requested after unclear photos." },
+  { id: "T-2047", title: "School premises cleanup", description: "General cleanup of the school compound ahead of the term restart.", location: "Govt. School, Rajajinagar", latitude: 12.9915, longitude: 77.5540, zone: "West", status: "approved", priority: "low", hotspotType: "Mixed waste", assignee: "Sunita Patil", createdBy: "Ananya Rao", createdAt: "2026-07-09 08:15", dueAt: "2026-07-11 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 60 },
+  { id: "T-2048", title: "Temple street sweep", description: "Flower and food waste accumulation after the weekend festival.", location: "Malleshwaram 8th Cross", latitude: 13.0067, longitude: 77.5730, zone: "North", status: "in_progress", priority: "low", hotspotType: "Mixed waste", assignee: "Kavita Joshi", createdBy: "Ananya Rao", createdAt: "2026-07-12 06:40", dueAt: "2026-07-14 12:00", wasteType: "Mixed Municipal", estimatedWasteKg: 40 },
+  { id: "T-2049", title: "Sewage overflow report", description: "Manhole overflow reported by residents, needs urgent attention.", location: "HSR Layout Sector 2", latitude: 12.9121, longitude: 77.6446, zone: "South", status: "assigned", priority: "urgent", hotspotType: "Drainage or canal waste", assignee: "Priya Menon", createdBy: "Ananya Rao", createdAt: "2026-07-12 12:20", dueAt: "2026-07-13 20:00", wasteType: "Sewage/Sludge", estimatedWasteKg: 500, instructions: "Coordinate with the water board before entering the manhole area." },
+  { id: "T-2050", title: "Roadside garbage bin damaged", description: "Damaged bin spilling waste onto the footpath.", location: "Indiranagar 100ft Road", latitude: 12.9719, longitude: 77.6412, zone: "East", status: "open", priority: "low", hotspotType: "Mixed waste", createdBy: "Ananya Rao", createdAt: "2026-07-12 13:00", dueAt: "2026-07-16 12:00", wasteType: "Mixed Municipal", estimatedWasteKg: 25 },
+  { id: "T-2051", title: "Public toilet cleanup", description: "Deep cleaning requested for the public toilet block at the bus terminal.", location: "Majestic Bus Terminal", latitude: 12.9767, longitude: 77.5713, zone: "Central", status: "canceled", priority: "medium", hotspotType: "Other", createdBy: "Ananya Rao", createdAt: "2026-07-10 09:00", dueAt: "2026-07-12 18:00", wasteType: "Sewage/Sludge", estimatedWasteKg: 80, internalNotes: "Canceled — contractor handled this directly." },
 
-  { id: "T-2052", title: "Riverside plastic cleanup", location: "Hebbal Lake Bund", zone: "North", status: "accepted", priority: "high", assignee: "Ravi Kumar", createdAt: "2026-07-07 09:00", dueAt: "2026-07-14 12:00", wasteType: "Plastic", estimatedWasteKg: 300 },
-  { id: "T-2053", title: "Park litter collection", location: "Sankey Tank Park", zone: "North", status: "accepted", priority: "medium", assignee: "Kavita Joshi", createdAt: "2026-07-08 10:00", dueAt: "2026-07-15 12:00", wasteType: "Mixed Municipal", estimatedWasteKg: 70 },
-  { id: "T-2054", title: "E-waste pickup request", location: "Whitefield Tech Park", zone: "East", status: "declined", priority: "medium", assignee: "Arjun Reddy", createdAt: "2026-07-09 11:00", dueAt: "2026-07-16 12:00", wasteType: "E-Waste", estimatedWasteKg: 120 },
-  { id: "T-2055", title: "Community hall cleanup", location: "Jayanagar 4th Block", zone: "South", status: "assigned", priority: "low", assignee: "Priya Menon", createdAt: "2026-07-10 09:30", dueAt: "2026-07-17 12:00", wasteType: "Organic", estimatedWasteKg: 50 },
-  { id: "T-2056", title: "Lakeside debris clearance", location: "Madiwala Lake", zone: "South", status: "in_progress", priority: "medium", assignee: "Anita Sharma", createdAt: "2026-07-11 08:00", dueAt: "2026-07-14 12:00", wasteType: "Construction Debris", estimatedWasteKg: 400 },
-  { id: "T-2057", title: "Industrial estate cleanup", location: "Peenya Industrial Area", zone: "East", status: "submitted", priority: "high", assignee: "Mohammed Irfan", createdAt: "2026-07-10 07:00", dueAt: "2026-07-12 20:00", wasteType: "Construction Debris", estimatedWasteKg: 550 },
-  { id: "T-2058", title: "Highway shoulder cleanup", location: "Tumkur Road Service Lane", zone: "North", status: "approved", priority: "medium", assignee: "Ravi Kumar", createdAt: "2026-07-07 08:00", dueAt: "2026-07-09 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 210 },
-  { id: "T-2059", title: "Ward 5 plastic removal", location: "Shivajinagar Ward 5", zone: "Central", status: "approved", priority: "high", assignee: "Deepak Yadav", createdAt: "2026-07-08 09:00", dueAt: "2026-07-10 17:00", wasteType: "Plastic", estimatedWasteKg: 260 },
-  { id: "T-2060", title: "Canal desilting support", location: "Vrishabhavathi Canal", zone: "Central", status: "approved", priority: "medium", assignee: "Deepak Yadav", createdAt: "2026-07-09 10:00", dueAt: "2026-07-11 17:00", wasteType: "Sewage/Sludge", estimatedWasteKg: 700 },
-  { id: "T-2061", title: "Community park cleanup", location: "Ejipura Park", zone: "South", status: "approved", priority: "low", assignee: "Anita Sharma", createdAt: "2026-07-11 09:00", dueAt: "2026-07-13 17:00", wasteType: "Organic", estimatedWasteKg: 90 },
-  { id: "T-2062", title: "Railway underpass cleanup", location: "Yeshwanthpur Underpass", zone: "North", status: "approved", priority: "high", assignee: "Kavita Joshi", createdAt: "2026-07-13 08:00", dueAt: "2026-07-13 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 150 },
+  { id: "T-2052", title: "Riverside plastic cleanup", description: "Plastic waste collecting along the lake bund after recent rains.", location: "Hebbal Lake Bund", latitude: 13.0453, longitude: 77.5950, zone: "North", status: "accepted", priority: "high", hotspotType: "Plastic litter", assignee: "Ravi Kumar", createdBy: "Ananya Rao", createdAt: "2026-07-07 09:00", dueAt: "2026-07-14 12:00", wasteType: "Plastic", estimatedWasteKg: 300 },
+  { id: "T-2053", title: "Park litter collection", description: "Weekend litter buildup around the walking track and play area.", location: "Sankey Tank Park", latitude: 13.0067, longitude: 77.5730, zone: "North", status: "accepted", priority: "medium", hotspotType: "Mixed waste", assignee: "Kavita Joshi", createdBy: "Ananya Rao", createdAt: "2026-07-08 10:00", dueAt: "2026-07-15 12:00", wasteType: "Mixed Municipal", estimatedWasteKg: 70 },
+  { id: "T-2054", title: "E-waste pickup request", description: "Decommissioned office electronics awaiting scheduled pickup.", location: "Whitefield Tech Park", latitude: 12.9698, longitude: 77.7500, zone: "East", status: "declined", priority: "medium", hotspotType: "Other", assignee: "Arjun Reddy", createdBy: "Ananya Rao", createdAt: "2026-07-09 11:00", dueAt: "2026-07-16 12:00", wasteType: "E-Waste", estimatedWasteKg: 120, internalNotes: "Collector declined — requires specialized handling, reassignment pending." },
+  { id: "T-2055", title: "Community hall cleanup", description: "Post-event cleanup for the community hall and adjoining grounds.", location: "Jayanagar 4th Block", latitude: 12.9254, longitude: 77.5931, zone: "South", status: "assigned", priority: "low", hotspotType: "Organic waste", assignee: "Priya Menon", createdBy: "Ananya Rao", createdAt: "2026-07-10 09:30", dueAt: "2026-07-17 12:00", wasteType: "Organic", estimatedWasteKg: 50 },
+  { id: "T-2056", title: "Lakeside debris clearance", description: "Construction rubble dumped near the lake walking path.", location: "Madiwala Lake", latitude: 12.9187, longitude: 77.6144, zone: "South", status: "in_progress", priority: "medium", hotspotType: "Construction debris", assignee: "Anita Sharma", createdBy: "Ananya Rao", createdAt: "2026-07-11 08:00", dueAt: "2026-07-14 12:00", wasteType: "Construction Debris", estimatedWasteKg: 400 },
+  { id: "T-2057", title: "Industrial estate cleanup", description: "Scrap and debris accumulation along the estate's internal road.", location: "Peenya Industrial Area", latitude: 13.0284, longitude: 77.5407, zone: "East", status: "submitted", priority: "high", hotspotType: "Construction debris", assignee: "Mohammed Irfan", createdBy: "Ananya Rao", createdAt: "2026-07-10 07:00", dueAt: "2026-07-12 20:00", wasteType: "Construction Debris", estimatedWasteKg: 550, hasReferencePhoto: true },
+  { id: "T-2058", title: "Highway shoulder cleanup", description: "Litter and debris along the service lane shoulder.", location: "Tumkur Road Service Lane", latitude: 13.0450, longitude: 77.5220, zone: "North", status: "approved", priority: "medium", hotspotType: "Mixed waste", assignee: "Ravi Kumar", createdBy: "Ananya Rao", createdAt: "2026-07-07 08:00", dueAt: "2026-07-09 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 210 },
+  { id: "T-2059", title: "Ward 5 plastic removal", description: "Plastic waste segregation and removal drive for Ward 5.", location: "Shivajinagar Ward 5", latitude: 12.9857, longitude: 77.6057, zone: "Central", status: "approved", priority: "high", hotspotType: "Plastic litter", assignee: "Deepak Yadav", createdBy: "Ananya Rao", createdAt: "2026-07-08 09:00", dueAt: "2026-07-10 17:00", wasteType: "Plastic", estimatedWasteKg: 260 },
+  { id: "T-2060", title: "Canal desilting support", description: "Silt and solid waste removal along a 40m canal stretch.", location: "Vrishabhavathi Canal", latitude: 12.9550, longitude: 77.5220, zone: "Central", status: "approved", priority: "medium", hotspotType: "Drainage or canal waste", assignee: "Deepak Yadav", createdBy: "Ananya Rao", createdAt: "2026-07-09 10:00", dueAt: "2026-07-11 17:00", wasteType: "Sewage/Sludge", estimatedWasteKg: 700 },
+  { id: "T-2061", title: "Community park cleanup", description: "Leaf litter and organic waste cleanup ahead of the weekend event.", location: "Ejipura Park", latitude: 12.9401, longitude: 77.6357, zone: "South", status: "approved", priority: "low", hotspotType: "Organic waste", assignee: "Anita Sharma", createdBy: "Ananya Rao", createdAt: "2026-07-11 09:00", dueAt: "2026-07-13 17:00", wasteType: "Organic", estimatedWasteKg: 90 },
+  { id: "T-2062", title: "Railway underpass cleanup", description: "Waste clearance ahead of the evening commute at the underpass.", location: "Yeshwanthpur Underpass", latitude: 13.0284, longitude: 77.5407, zone: "North", status: "approved", priority: "high", hotspotType: "Mixed waste", assignee: "Kavita Joshi", createdBy: "Ananya Rao", createdAt: "2026-07-13 08:00", dueAt: "2026-07-13 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 150 },
 ];
 
 export const submissions: Submission[] = [
@@ -118,6 +164,19 @@ export const submissions: Submission[] = [
   { id: "S-520", taskId: "T-2062", taskTitle: "Railway underpass cleanup", collector: "Kavita Joshi", zone: "North", priority: "high", wasteType: "Mixed Municipal", quantityKg: 150, submittedAt: "2026-07-13 09:30", decidedAt: "2026-07-13 11:00", status: "approved", note: "Underpass cleared before evening commute." },
 ];
 
+function toTimestamp(dateStr: string): number {
+  return new Date(dateStr.replace(" ", "T")).getTime();
+}
+
+// `updatedAt` is derived, not hand-typed: it's the latest of a task's creation time and any
+// submission activity (submitted/decided) linked to it, so "Last updated" reflects real activity.
+export const tasks: Task[] = tasksBase.map((t) => {
+  const related = submissions.filter((s) => s.taskId === t.id);
+  const candidates = [t.createdAt, ...related.map((s) => s.submittedAt), ...related.flatMap((s) => (s.decidedAt ? [s.decidedAt] : []))];
+  const updatedAt = candidates.reduce((latest, ts) => (toTimestamp(ts) > toTimestamp(latest) ? ts : latest), t.createdAt);
+  return { ...t, updatedAt };
+});
+
 // `tasksCompleted` = approved tasks assigned to this collector; `approvalRate` = approved ÷
 // (approved + rejected) submissions for this collector. Both computed from the data above so a
 // ~22-task pilot never shows an individual collector with more completions than the pilot has
@@ -128,6 +187,60 @@ export const collectors: Collector[] = collectorsBase.map((c) => {
   const approvalRate = decided.length ? Math.round((decided.filter((s) => s.status === "approved").length / decided.length) * 100) : 0;
   return { ...c, tasksCompleted, approvalRate };
 });
+
+// Only collectors able to take on new work — used when assigning/reassigning a task.
+export const assignableCollectors = collectors.filter((c) => c.active && !c.registrationStatus);
+
+// Natural-language event history, generated from the task + its linked submission so it always
+// matches the task's actual status rather than being hand-authored per task.
+function buildInitialEvents(t: Task, submission: Submission | undefined): TaskEvent[] {
+  const events: TaskEvent[] = [
+    { id: `${t.id}-E1`, taskId: t.id, timestamp: t.createdAt, message: `Task created by ${t.createdBy}` },
+  ];
+  if (t.assignee) {
+    events.push({ id: `${t.id}-E2`, taskId: t.id, timestamp: t.createdAt, message: `Assigned to ${t.assignee}` });
+  }
+  if (t.status === "accepted" || t.status === "in_progress" || t.status === "submitted" || t.status === "approved" || t.status === "rejected") {
+    events.push({ id: `${t.id}-E3`, taskId: t.id, timestamp: t.createdAt, message: `${t.assignee} accepted the task` });
+  }
+  if (t.status === "declined") {
+    events.push({ id: `${t.id}-E3`, taskId: t.id, timestamp: t.updatedAt, message: `${t.assignee} declined the task` });
+  }
+  if (t.status === "in_progress" || t.status === "submitted" || t.status === "approved" || t.status === "rejected") {
+    events.push({ id: `${t.id}-E4`, taskId: t.id, timestamp: t.createdAt, message: `${t.assignee} started work` });
+  }
+  if (submission) {
+    events.push({ id: `${t.id}-E5`, taskId: t.id, timestamp: submission.submittedAt, message: `${t.assignee} submitted proof of work` });
+    if (submission.status === "approved") {
+      events.push({ id: `${t.id}-E6`, taskId: t.id, timestamp: submission.decidedAt ?? submission.submittedAt, message: "Submission approved" });
+    } else if (submission.status === "rejected") {
+      events.push({ id: `${t.id}-E6`, taskId: t.id, timestamp: submission.decidedAt ?? submission.submittedAt, message: "Submission rejected — resubmission requested" });
+    }
+  }
+  if (t.status === "canceled") {
+    events.push({ id: `${t.id}-E7`, taskId: t.id, timestamp: t.updatedAt, message: "Task canceled by operator" });
+  }
+  return events.sort((a, b) => toTimestamp(a.timestamp) - toTimestamp(b.timestamp));
+}
+
+export const initialTaskEvents: TaskEvent[] = tasks.flatMap((t) =>
+  buildInitialEvents(t, submissions.find((s) => s.taskId === t.id)),
+);
+
+// The only mock status transitions a person can trigger manually from the Tasks UI in this phase.
+// Every other transition (accepted, in_progress, submitted, and review decisions) happens via
+// WhatsApp or the Review page and is out of scope here.
+export const taskTransitions: Record<TaskStatus, TaskStatus[]> = {
+  open: ["assigned", "canceled"],
+  assigned: ["canceled"],
+  accepted: ["canceled"],
+  in_progress: ["canceled"],
+  submitted: [],
+  approved: [],
+  declined: ["assigned"],
+  rejected: ["canceled"],
+  canceled: [],
+};
 
 // --- Legacy aggregates kept for the Reports page (untouched by the Overview rebuild). ---
 
@@ -149,9 +262,10 @@ export const zoneBreakdown: { zone: Zone; open: number; done: number }[] = [
   { zone: "Central", open: 9, done: 51 },
 ];
 
-// --- Derived data for the Operations Overview page. Everything below is computed from the ---
-// --- arrays above so the page never hardcodes a total; see replit.md for a metric-by-metric ---
-// --- explanation of how each number here is produced. ---
+// --- Derived data for the Operations Overview page. Metrics below are exposed as `compute*` ---
+// --- functions (default-parameterized on the base `tasks` array) so the Tasks workspace can ---
+// --- create/edit/assign/cancel tasks at runtime and Overview stays in sync — both read from ---
+// --- the same live task list via `src/lib/task-store.ts` rather than a frozen snapshot. ---
 
 // Statuses that are "closed" for good — a task here will never move again.
 const CLOSED_STATUSES: TaskStatus[] = ["approved", "rejected", "declined", "canceled"];
@@ -161,10 +275,6 @@ const OPEN_PIPELINE_STATUSES: TaskStatus[] = ["open", "assigned", "accepted", "i
 const ACCEPTED_OR_LATER_STATUSES: TaskStatus[] = ["accepted", "in_progress", "submitted", "approved", "rejected"];
 
 const priorityRank: Record<Priority, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
-
-function toTimestamp(dateStr: string): number {
-  return new Date(dateStr.replace(" ", "T")).getTime();
-}
 
 function dateKey(dateStr: string): string {
   return dateStr.slice(0, 10);
@@ -182,29 +292,49 @@ export function formatFriendlyDateTime(dateStr: string): string {
   return `${target.toLocaleDateString("en-US", { day: "numeric", month: "short" })}, ${timeLabel}`;
 }
 
+/** Formats a "YYYY-MM-DD HH:mm" mock timestamp as a plain date, e.g. "13 Jul 2026". */
+export function formatFriendlyDate(dateStr: string): string {
+  const [datePart, timePart] = dateStr.split(" ");
+  const target = new Date(`${datePart}T${timePart ?? "00:00"}`);
+  return target.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+}
+
+export function isTaskOverdue(t: Task): boolean {
+  return OPEN_PIPELINE_STATUSES.includes(t.status) && toTimestamp(t.dueAt) < toTimestamp(NOW);
+}
+
 // Open Tasks: not yet approved, rejected, declined, or canceled.
-export const openTasksCount = tasks.filter((t) => !CLOSED_STATUSES.includes(t.status)).length;
+export function computeOpenTasksCount(tasksList: Task[] = tasks): number {
+  return tasksList.filter((t) => !CLOSED_STATUSES.includes(t.status)).length;
+}
 // Awaiting Review: tasks a collector has submitted proof for, sitting in the reviewer's queue.
-export const awaitingReviewCount = tasks.filter((t) => t.status === "submitted").length;
+export function computeAwaitingReviewCount(tasksList: Task[] = tasks): number {
+  return tasksList.filter((t) => t.status === "submitted").length;
+}
 // Approved Tasks: verified complete.
-export const approvedTasksCount = tasks.filter((t) => t.status === "approved").length;
+export function computeApprovedTasksCount(tasksList: Task[] = tasks): number {
+  return tasksList.filter((t) => t.status === "approved").length;
+}
+
 // Active Collectors: currently able to take assignments.
 export const activeCollectorsCount = collectors.filter((c) => c.active).length;
+export const totalCollectorsCount = collectors.length;
+export const pendingRegistrationCount = collectors.filter((c) => c.registrationStatus === "pending").length;
 
 // Completion Rate: of tasks that ever got assigned (i.e. excluding drafts and canceled), how many
 // have reached submitted, approved, or rejected — a sense of how far the pipeline is moving.
-const assignedOrLaterTasks = tasks.filter((t) => t.status !== "open" && t.status !== "canceled");
-const reachedReviewTasks = tasks.filter((t) => t.status === "submitted" || t.status === "approved" || t.status === "rejected");
-export const completionRate = assignedOrLaterTasks.length
-  ? Math.round((reachedReviewTasks.length / assignedOrLaterTasks.length) * 100)
-  : 0;
+export function computeCompletionRate(tasksList: Task[] = tasks): number {
+  const assignedOrLater = tasksList.filter((t) => t.status !== "open" && t.status !== "canceled");
+  const reachedReview = tasksList.filter((t) => t.status === "submitted" || t.status === "approved" || t.status === "rejected");
+  return assignedOrLater.length ? Math.round((reachedReview.length / assignedOrLater.length) * 100) : 0;
+}
 
 // Acceptance Rate: of tasks a collector responded to, the share they accepted rather than declined.
-const acceptedOrLaterCount = tasks.filter((t) => ACCEPTED_OR_LATER_STATUSES.includes(t.status)).length;
-const declinedCount = tasks.filter((t) => t.status === "declined").length;
-export const acceptanceRate = acceptedOrLaterCount + declinedCount
-  ? Math.round((acceptedOrLaterCount / (acceptedOrLaterCount + declinedCount)) * 100)
-  : 0;
+export function computeAcceptanceRate(tasksList: Task[] = tasks): number {
+  const acceptedOrLater = tasksList.filter((t) => ACCEPTED_OR_LATER_STATUSES.includes(t.status)).length;
+  const declined = tasksList.filter((t) => t.status === "declined").length;
+  return acceptedOrLater + declined ? Math.round((acceptedOrLater / (acceptedOrLater + declined)) * 100) : 0;
+}
 
 // Estimated Waste Collected: approved submissions only — the only quantities that are verified.
 export const estimatedWasteCollectedKg = submissions
@@ -212,25 +342,32 @@ export const estimatedWasteCollectedKg = submissions
   .reduce((sum, s) => sum + s.quantityKg, 0);
 
 // Overdue Tasks: past their due date and not yet approved, canceled, declined, or rejected.
-export const overdueTasksCount = tasks.filter(
-  (t) => OPEN_PIPELINE_STATUSES.includes(t.status) && toTimestamp(t.dueAt) < toTimestamp(NOW),
-).length;
+export function computeOverdueTasksCount(tasksList: Task[] = tasks): number {
+  return tasksList.filter(isTaskOverdue).length;
+}
 
-export const totalCollectorsCount = collectors.length;
-export const pendingRegistrationCount = collectors.filter((c) => c.registrationStatus === "pending").length;
-export const collectorsAssignedTodayCount = new Set(
-  tasks.filter((t) => t.assignee && dateKey(t.createdAt) === dateKey(NOW)).map((t) => t.assignee),
-).size;
+export function computeCollectorsAssignedTodayCount(tasksList: Task[] = tasks): number {
+  return new Set(
+    tasksList.filter((t) => t.assignee && dateKey(t.createdAt) === dateKey(NOW)).map((t) => t.assignee),
+  ).size;
+}
+
 // Distinct collectors who have at least one submission still awaiting a review decision — a
-// different count than `awaitingReviewCount` above (that one counts tasks, this counts people).
+// different count than `computeAwaitingReviewCount` above (that one counts tasks, this counts people).
 export const collectorsWithPendingSubmissionsCount = new Set(
   submissions.filter((s) => s.status === "pending").map((s) => s.collector),
 ).size;
 
-export const topCollectors = [...collectors]
-  .filter((c) => c.active)
-  .sort((a, b) => b.tasksCompleted - a.tasksCompleted || toTimestamp(b.lastActiveAt) - toTimestamp(a.lastActiveAt))
-  .slice(0, 3);
+export function computeTopCollectors(tasksList: Task[] = tasks, collectorsList: Collector[] = collectors) {
+  const withLiveCompletions = collectorsList.map((c) => ({
+    ...c,
+    tasksCompleted: tasksList.filter((t) => t.assignee === c.name && t.status === "approved").length,
+  }));
+  return withLiveCompletions
+    .filter((c) => c.active)
+    .sort((a, b) => b.tasksCompleted - a.tasksCompleted || toTimestamp(b.lastActiveAt) - toTimestamp(a.lastActiveAt))
+    .slice(0, 3);
+}
 
 // Last 7 days of pipeline activity: tasks that picked up an assignee (Assigned), submissions
 // filed (Submitted), and submissions that cleared review (Approved), bucketed by calendar day.
@@ -239,16 +376,18 @@ const last7Days: string[] = Array.from({ length: 7 }, (_, i) => {
   return d.toISOString().slice(0, 10);
 });
 
-export const cleanupActivity = last7Days.map((day) => {
-  const label = new Date(`${day}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" });
-  return {
-    day,
-    label,
-    assigned: tasks.filter((t) => t.assignee && dateKey(t.createdAt) === day).length,
-    submitted: submissions.filter((s) => dateKey(s.submittedAt) === day).length,
-    approved: submissions.filter((s) => s.status === "approved" && s.decidedAt && dateKey(s.decidedAt) === day).length,
-  };
-});
+export function computeCleanupActivity(tasksList: Task[] = tasks, submissionsList: Submission[] = submissions) {
+  return last7Days.map((day) => {
+    const label = new Date(`${day}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" });
+    return {
+      day,
+      label,
+      assigned: tasksList.filter((t) => t.assignee && dateKey(t.createdAt) === day).length,
+      submitted: submissionsList.filter((s) => dateKey(s.submittedAt) === day).length,
+      approved: submissionsList.filter((s) => s.status === "approved" && s.decidedAt && dateKey(s.decidedAt) === day).length,
+    };
+  });
+}
 
 const statusOrder: TaskStatus[] = ["open", "assigned", "accepted", "in_progress", "submitted", "approved", "declined", "rejected", "canceled"];
 const statusDisplayLabel: Record<TaskStatus, string> = {
@@ -263,11 +402,13 @@ const statusDisplayLabel: Record<TaskStatus, string> = {
   canceled: "Canceled",
 };
 
-export const taskStatusBreakdown = statusOrder.map((status) => ({
-  status,
-  label: statusDisplayLabel[status],
-  count: tasks.filter((t) => t.status === status).length,
-}));
+export function computeTaskStatusBreakdown(tasksList: Task[] = tasks) {
+  return statusOrder.map((status) => ({
+    status,
+    label: statusDisplayLabel[status],
+    count: tasksList.filter((t) => t.status === status).length,
+  }));
+}
 
 export const tasksNeedingReview = submissions
   .filter((s) => s.status === "pending")
@@ -299,24 +440,31 @@ export interface CleanupLocation {
   highestPriorityTask: string | null;
 }
 
-export const cleanupLocations: CleanupLocation[] = (["North", "South", "East", "West", "Central"] as Zone[]).map((zone) => {
-  const zoneTasks = tasks.filter((t) => t.zone === zone);
-  const inFlight = zoneTasks.filter((t) => OPEN_PIPELINE_STATUSES.includes(t.status));
+export function computeCleanupLocations(tasksList: Task[] = tasks): CleanupLocation[] {
+  return ZONES.map((zone) => {
+    const zoneTasks = tasksList.filter((t) => t.zone === zone);
+    const inFlight = zoneTasks.filter((t) => OPEN_PIPELINE_STATUSES.includes(t.status));
 
-  const wasteTally = new Map<WasteType, number>();
-  for (const t of zoneTasks) wasteTally.set(t.wasteType, (wasteTally.get(t.wasteType) ?? 0) + 1);
-  const hotspotType = [...wasteTally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Mixed Municipal";
+    const wasteTally = new Map<WasteType, number>();
+    for (const t of zoneTasks) wasteTally.set(t.wasteType, (wasteTally.get(t.wasteType) ?? 0) + 1);
+    const hotspotType = [...wasteTally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Mixed Municipal";
 
-  const highestPriorityTask = [...inFlight].sort((a, b) => {
-    const byPriority = priorityRank[b.priority] - priorityRank[a.priority];
-    return byPriority !== 0 ? byPriority : toTimestamp(a.dueAt) - toTimestamp(b.dueAt);
-  })[0];
+    const highestPriorityTask = [...inFlight].sort((a, b) => {
+      const byPriority = priorityRank[b.priority] - priorityRank[a.priority];
+      return byPriority !== 0 ? byPriority : toTimestamp(a.dueAt) - toTimestamp(b.dueAt);
+    })[0];
 
-  return {
-    zone,
-    openTasks: inFlight.length,
-    completedTasks: zoneTasks.filter((t) => t.status === "approved").length,
-    hotspotType,
-    highestPriorityTask: highestPriorityTask ? highestPriorityTask.title : null,
-  };
-});
+    return {
+      zone,
+      openTasks: inFlight.length,
+      completedTasks: zoneTasks.filter((t) => t.status === "approved").length,
+      hotspotType,
+      highestPriorityTask: highestPriorityTask ? highestPriorityTask.title : null,
+    };
+  });
+}
+
+let taskIdCounter = Math.max(...tasks.map((t) => Number(t.id.split("-")[1]))) + 1;
+export function nextTaskId(): string {
+  return `T-${taskIdCounter++}`;
+}
