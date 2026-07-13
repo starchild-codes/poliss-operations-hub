@@ -10,6 +10,8 @@
   --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -19,18 +21,26 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-dark: var(--primary-dark);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-surface: var(--surface);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --color-highlight: var(--highlight);
-  --color-highlight-foreground: var(--highlight-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-teal: var(--teal);
+  --color-teal-foreground: var(--teal-foreground);
+  --color-indigo: var(--indigo);
+  --color-indigo-foreground: var(--indigo-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -53,54 +63,66 @@
 :root {
   --radius: 0.5rem;
 
-  /* Poliss palette */
-  --background: oklch(0.973 0.012 110);            /* #F6F7F2 warm off-white */
-  --foreground: oklch(0.215 0.012 160);            /* #18221D charcoal */
-  --card: oklch(1 0 0);                            /* #FFFFFF */
-  --card-foreground: oklch(0.215 0.012 160);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.215 0.012 160);
+  /* Polis Systems institutional blue palette */
+  --background: #f3f8fc;                 /* pale blue background */
+  --foreground: #172b3a;                 /* main text */
+  --card: #ffffff;                       /* white surface */
+  --card-foreground: #172b3a;
+  --popover: #ffffff;
+  --popover-foreground: #172b3a;
+  --surface: #eaf4fa;                    /* light blue surface */
 
-  --primary: oklch(0.505 0.09 160);                /* #187455 forest green */
-  --primary-foreground: oklch(0.985 0.005 110);
-  --primary-dark: oklch(0.395 0.075 160);          /* #0D513B */
+  --primary: #1676b8;                    /* primary blue */
+  --primary-foreground: #ffffff;
+  --primary-dark: #12304a;               /* deep navy */
+  --primary-soft: #eaf4fa;
 
-  --secondary: oklch(0.955 0.01 130);
-  --secondary-foreground: oklch(0.215 0.012 160);
+  --secondary: #eaf4fa;
+  --secondary-foreground: #12304a;
 
-  --muted: oklch(0.955 0.01 130);
-  --muted-foreground: oklch(0.475 0.015 155);      /* #647068 muted grey-green */
+  --muted: #eaf4fa;
+  --muted-foreground: #607787;
 
-  --accent: oklch(0.945 0.02 130);
-  --accent-foreground: oklch(0.215 0.012 160);
+  --accent: #eaf4fa;
+  --accent-foreground: #12304a;
 
-  --highlight: oklch(0.92 0.13 120);               /* #D7EE73 lime */
-  --highlight-foreground: oklch(0.25 0.05 160);
+  --success: #2e8b75;
+  --success-foreground: #ffffff;
 
-  --warning: oklch(0.735 0.15 65);                 /* #D99126 amber */
-  --warning-foreground: oklch(0.985 0.005 110);
+  --warning: #d89b3c;
+  --warning-foreground: #ffffff;
 
-  --destructive: oklch(0.615 0.185 25);            /* #C94B4B red */
-  --destructive-foreground: oklch(0.985 0.005 110);
+  --destructive: #c95454;
+  --destructive-foreground: #ffffff;
 
-  --border: oklch(0.905 0.012 140);                /* #DEE4DE */
-  --input: oklch(0.905 0.012 140);
-  --ring: oklch(0.505 0.09 160);
+  --info: #4ba3d3;                       /* secondary blue */
+  --info-foreground: #0b2033;
 
-  --chart-1: oklch(0.505 0.09 160);
-  --chart-2: oklch(0.735 0.15 65);
-  --chart-3: oklch(0.615 0.185 25);
-  --chart-4: oklch(0.92 0.13 120);
-  --chart-5: oklch(0.395 0.075 160);
+  --teal: #0e8aa5;
+  --teal-foreground: #ffffff;
 
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.215 0.012 160);
-  --sidebar-primary: oklch(0.505 0.09 160);
-  --sidebar-primary-foreground: oklch(0.985 0.005 110);
-  --sidebar-accent: oklch(0.955 0.01 130);
-  --sidebar-accent-foreground: oklch(0.395 0.075 160);
-  --sidebar-border: oklch(0.905 0.012 140);
-  --sidebar-ring: oklch(0.505 0.09 160);
+  --indigo: #4c5fbf;
+  --indigo-foreground: #ffffff;
+
+  --border: #d8e5ed;
+  --input: #d8e5ed;
+  --ring: #1676b8;
+
+  --chart-1: #1676b8;
+  --chart-2: #12304a;
+  --chart-3: #4ba3d3;
+  --chart-4: #d89b3c;
+  --chart-5: #2e8b75;
+
+  /* Deep navy sidebar */
+  --sidebar: #12304a;
+  --sidebar-foreground: #cfe0ec;
+  --sidebar-primary: #1676b8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b3d5c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1b3d5c;
+  --sidebar-ring: #4ba3d3;
 }
 
 @layer base {
@@ -110,6 +132,8 @@
   html, body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
   }
 }
