@@ -62,17 +62,21 @@ export interface Submission {
 // Fixed "now" for this pilot snapshot so derived metrics (overdue, daily trends) are deterministic.
 export const NOW = "2026-07-13 12:00";
 
-export const collectors: Collector[] = [
-  { id: "C-101", name: "Ravi Kumar", phone: "+91 98450 12034", zone: "North", active: true, tasksCompleted: 128, rating: 4.7, approvalRate: 92, lastActiveAt: "2026-07-13 08:10" },
-  { id: "C-102", name: "Anita Sharma", phone: "+91 98860 23112", zone: "South", active: true, tasksCompleted: 96, rating: 4.5, approvalRate: 88, lastActiveAt: "2026-07-12 19:40" },
-  { id: "C-103", name: "Mohammed Irfan", phone: "+91 99012 55461", zone: "East", active: true, tasksCompleted: 154, rating: 4.8, approvalRate: 95, lastActiveAt: "2026-07-12 18:20" },
-  { id: "C-104", name: "Sunita Patil", phone: "+91 98221 88720", zone: "West", active: false, tasksCompleted: 43, rating: 4.2, approvalRate: 80, lastActiveAt: "2026-07-05 10:00" },
-  { id: "C-105", name: "Deepak Yadav", phone: "+91 97401 33298", zone: "Central", active: true, tasksCompleted: 201, rating: 4.9, approvalRate: 97, lastActiveAt: "2026-07-13 11:05" },
-  { id: "C-106", name: "Priya Menon", phone: "+91 98470 91123", zone: "South", active: true, tasksCompleted: 77, rating: 4.4, approvalRate: 85, lastActiveAt: "2026-07-12 12:20" },
-  { id: "C-107", name: "Arjun Reddy", phone: "+91 96320 42200", zone: "East", active: true, tasksCompleted: 62, rating: 4.3, approvalRate: 70, lastActiveAt: "2026-07-09 11:00" },
-  { id: "C-108", name: "Kavita Joshi", phone: "+91 98191 77340", zone: "North", active: true, tasksCompleted: 88, rating: 4.6, approvalRate: 90, lastActiveAt: "2026-07-13 09:35" },
-  { id: "C-109", name: "Farhan Sheikh", phone: "+91 90080 44210", zone: "East", active: false, tasksCompleted: 0, rating: 0, approvalRate: 0, lastActiveAt: "—", registrationStatus: "pending" },
-  { id: "C-110", name: "Meera Nair", phone: "+91 90210 66531", zone: "South", active: false, tasksCompleted: 0, rating: 0, approvalRate: 0, lastActiveAt: "—", registrationStatus: "pending" },
+// Base collector info. `tasksCompleted` and `approvalRate` are NOT hardcoded here — they are
+// derived below from the actual tasks/submissions in this pilot, so they always reconcile with
+// what the rest of the dashboard shows (a ~22-task pilot cannot produce collectors with 100+
+// completions).
+const collectorsBase: Omit<Collector, "tasksCompleted" | "approvalRate">[] = [
+  { id: "C-101", name: "Ravi Kumar", phone: "+91 98450 12034", zone: "North", active: true, rating: 4.7, lastActiveAt: "2026-07-13 08:10" },
+  { id: "C-102", name: "Anita Sharma", phone: "+91 98860 23112", zone: "South", active: true, rating: 4.5, lastActiveAt: "2026-07-12 19:40" },
+  { id: "C-103", name: "Mohammed Irfan", phone: "+91 99012 55461", zone: "East", active: true, rating: 4.8, lastActiveAt: "2026-07-12 18:20" },
+  { id: "C-104", name: "Sunita Patil", phone: "+91 98221 88720", zone: "West", active: false, rating: 4.2, lastActiveAt: "2026-07-05 10:00" },
+  { id: "C-105", name: "Deepak Yadav", phone: "+91 97401 33298", zone: "Central", active: true, rating: 4.9, lastActiveAt: "2026-07-13 11:05" },
+  { id: "C-106", name: "Priya Menon", phone: "+91 98470 91123", zone: "South", active: true, rating: 4.4, lastActiveAt: "2026-07-12 12:20" },
+  { id: "C-107", name: "Arjun Reddy", phone: "+91 96320 42200", zone: "East", active: true, rating: 4.3, lastActiveAt: "2026-07-09 11:00" },
+  { id: "C-108", name: "Kavita Joshi", phone: "+91 98191 77340", zone: "North", active: true, rating: 4.6, lastActiveAt: "2026-07-13 09:35" },
+  { id: "C-109", name: "Farhan Sheikh", phone: "+91 90080 44210", zone: "East", active: false, rating: 0, lastActiveAt: "—", registrationStatus: "pending" },
+  { id: "C-110", name: "Meera Nair", phone: "+91 90210 66531", zone: "South", active: false, rating: 0, lastActiveAt: "—", registrationStatus: "pending" },
 ];
 
 export const tasks: Task[] = [
@@ -114,6 +118,17 @@ export const submissions: Submission[] = [
   { id: "S-520", taskId: "T-2062", taskTitle: "Railway underpass cleanup", collector: "Kavita Joshi", zone: "North", priority: "high", wasteType: "Mixed Municipal", quantityKg: 150, submittedAt: "2026-07-13 09:30", decidedAt: "2026-07-13 11:00", status: "approved", note: "Underpass cleared before evening commute." },
 ];
 
+// `tasksCompleted` = approved tasks assigned to this collector; `approvalRate` = approved ÷
+// (approved + rejected) submissions for this collector. Both computed from the data above so a
+// ~22-task pilot never shows an individual collector with more completions than the pilot has
+// tasks.
+export const collectors: Collector[] = collectorsBase.map((c) => {
+  const tasksCompleted = tasks.filter((t) => t.assignee === c.name && t.status === "approved").length;
+  const decided = submissions.filter((s) => s.collector === c.name && (s.status === "approved" || s.status === "rejected"));
+  const approvalRate = decided.length ? Math.round((decided.filter((s) => s.status === "approved").length / decided.length) * 100) : 0;
+  return { ...c, tasksCompleted, approvalRate };
+});
+
 // --- Legacy aggregates kept for the Reports page (untouched by the Overview rebuild). ---
 
 export const weeklyCompleted = [
@@ -138,8 +153,12 @@ export const zoneBreakdown: { zone: Zone; open: number; done: number }[] = [
 // --- arrays above so the page never hardcodes a total; see replit.md for a metric-by-metric ---
 // --- explanation of how each number here is produced. ---
 
-const TERMINAL_STATUSES: TaskStatus[] = ["approved", "rejected", "canceled"];
-const ACTIVE_PIPELINE_STATUSES: TaskStatus[] = ["open", "assigned", "accepted", "in_progress", "submitted", "declined"];
+// Statuses that are "closed" for good — a task here will never move again.
+const CLOSED_STATUSES: TaskStatus[] = ["approved", "rejected", "declined", "canceled"];
+// Statuses a task can still be overdue in (it hasn't reached a closed/final state).
+const OPEN_PIPELINE_STATUSES: TaskStatus[] = ["open", "assigned", "accepted", "in_progress", "submitted"];
+// A task has moved past acceptance once it's accepted or further along the happy path.
+const ACCEPTED_OR_LATER_STATUSES: TaskStatus[] = ["accepted", "in_progress", "submitted", "approved", "rejected"];
 
 const priorityRank: Record<Priority, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
 
@@ -151,28 +170,50 @@ function dateKey(dateStr: string): string {
   return dateStr.slice(0, 10);
 }
 
-export const openTasksCount = tasks.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
-export const awaitingReviewCount = submissions.filter((s) => s.status === "pending").length;
+/** Formats a "YYYY-MM-DD HH:mm" mock timestamp for display, e.g. "Today, 9:30 AM". Storage stays ISO-like; only the UI is friendly. */
+export function formatFriendlyDateTime(dateStr: string): string {
+  const [datePart, timePart] = dateStr.split(" ");
+  const target = new Date(`${datePart}T${timePart}`);
+  const timeLabel = target.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const todayKey = dateKey(NOW);
+  const yesterdayKey = new Date(toTimestamp(NOW) - 86_400_000).toISOString().slice(0, 10);
+  if (datePart === todayKey) return `Today, ${timeLabel}`;
+  if (datePart === yesterdayKey) return `Yesterday, ${timeLabel}`;
+  return `${target.toLocaleDateString("en-US", { day: "numeric", month: "short" })}, ${timeLabel}`;
+}
+
+// Open Tasks: not yet approved, rejected, declined, or canceled.
+export const openTasksCount = tasks.filter((t) => !CLOSED_STATUSES.includes(t.status)).length;
+// Awaiting Review: tasks a collector has submitted proof for, sitting in the reviewer's queue.
+export const awaitingReviewCount = tasks.filter((t) => t.status === "submitted").length;
+// Approved Tasks: verified complete.
 export const approvedTasksCount = tasks.filter((t) => t.status === "approved").length;
+// Active Collectors: currently able to take assignments.
 export const activeCollectorsCount = collectors.filter((c) => c.active).length;
 
-const decidedSubmissions = submissions.filter((s) => s.status === "approved" || s.status === "rejected");
-export const completionRate = decidedSubmissions.length
-  ? Math.round((decidedSubmissions.filter((s) => s.status === "approved").length / decidedSubmissions.length) * 100)
+// Completion Rate: of tasks that ever got assigned (i.e. excluding drafts and canceled), how many
+// have reached submitted, approved, or rejected — a sense of how far the pipeline is moving.
+const assignedOrLaterTasks = tasks.filter((t) => t.status !== "open" && t.status !== "canceled");
+const reachedReviewTasks = tasks.filter((t) => t.status === "submitted" || t.status === "approved" || t.status === "rejected");
+export const completionRate = assignedOrLaterTasks.length
+  ? Math.round((reachedReviewTasks.length / assignedOrLaterTasks.length) * 100)
   : 0;
 
-const acceptedCount = tasks.filter((t) => t.status === "accepted").length;
+// Acceptance Rate: of tasks a collector responded to, the share they accepted rather than declined.
+const acceptedOrLaterCount = tasks.filter((t) => ACCEPTED_OR_LATER_STATUSES.includes(t.status)).length;
 const declinedCount = tasks.filter((t) => t.status === "declined").length;
-export const acceptanceRate = acceptedCount + declinedCount
-  ? Math.round((acceptedCount / (acceptedCount + declinedCount)) * 100)
+export const acceptanceRate = acceptedOrLaterCount + declinedCount
+  ? Math.round((acceptedOrLaterCount / (acceptedOrLaterCount + declinedCount)) * 100)
   : 0;
 
+// Estimated Waste Collected: approved submissions only — the only quantities that are verified.
 export const estimatedWasteCollectedKg = submissions
   .filter((s) => s.status === "approved")
   .reduce((sum, s) => sum + s.quantityKg, 0);
 
+// Overdue Tasks: past their due date and not yet approved, canceled, declined, or rejected.
 export const overdueTasksCount = tasks.filter(
-  (t) => ACTIVE_PIPELINE_STATUSES.includes(t.status) && toTimestamp(t.dueAt) < toTimestamp(NOW),
+  (t) => OPEN_PIPELINE_STATUSES.includes(t.status) && toTimestamp(t.dueAt) < toTimestamp(NOW),
 ).length;
 
 export const totalCollectorsCount = collectors.length;
@@ -180,13 +221,15 @@ export const pendingRegistrationCount = collectors.filter((c) => c.registrationS
 export const collectorsAssignedTodayCount = new Set(
   tasks.filter((t) => t.assignee && dateKey(t.createdAt) === dateKey(NOW)).map((t) => t.assignee),
 ).size;
-export const collectorsAwaitingReviewCount = new Set(
+// Distinct collectors who have at least one submission still awaiting a review decision — a
+// different count than `awaitingReviewCount` above (that one counts tasks, this counts people).
+export const collectorsWithPendingSubmissionsCount = new Set(
   submissions.filter((s) => s.status === "pending").map((s) => s.collector),
 ).size;
 
 export const topCollectors = [...collectors]
   .filter((c) => c.active)
-  .sort((a, b) => b.tasksCompleted - a.tasksCompleted)
+  .sort((a, b) => b.tasksCompleted - a.tasksCompleted || toTimestamp(b.lastActiveAt) - toTimestamp(a.lastActiveAt))
   .slice(0, 3);
 
 // Last 7 days of pipeline activity: tasks that picked up an assignee (Assigned), submissions
@@ -229,7 +272,7 @@ export const taskStatusBreakdown = statusOrder.map((status) => ({
 export const tasksNeedingReview = submissions
   .filter((s) => s.status === "pending")
   .sort((a, b) => toTimestamp(b.submittedAt) - toTimestamp(a.submittedAt))
-  .slice(0, 5);
+  .slice(0, 3);
 
 export interface ActivityItem {
   id: string;
@@ -246,9 +289,6 @@ export const recentActivity: ActivityItem[] = [
   { id: "A-3", message: "Mohammed Irfan submitted proof for Industrial estate cleanup", timestamp: "2026-07-12 18:00", type: "submitted" },
   { id: "A-4", message: "Community park cleanup was approved", timestamp: "2026-07-12 18:00", type: "approved" },
   { id: "A-5", message: "Deepak Yadav submitted proof for Market waste pile-up", timestamp: "2026-07-12 17:04", type: "submitted" },
-  { id: "A-6", message: "Deepak Yadav submitted proof for Garbage overflow near bus stand", timestamp: "2026-07-12 16:22", type: "submitted" },
-  { id: "A-7", message: "Anita Sharma submitted proof for Community park cleanup", timestamp: "2026-07-12 15:00", type: "submitted" },
-  { id: "A-8", message: "Plastic dump near lake was rejected", timestamp: "2026-07-11 15:40", type: "rejected" },
 ];
 
 export interface CleanupLocation {
@@ -261,7 +301,7 @@ export interface CleanupLocation {
 
 export const cleanupLocations: CleanupLocation[] = (["North", "South", "East", "West", "Central"] as Zone[]).map((zone) => {
   const zoneTasks = tasks.filter((t) => t.zone === zone);
-  const inFlight = zoneTasks.filter((t) => ACTIVE_PIPELINE_STATUSES.includes(t.status));
+  const inFlight = zoneTasks.filter((t) => OPEN_PIPELINE_STATUSES.includes(t.status));
 
   const wasteTally = new Map<WasteType, number>();
   for (const t of zoneTasks) wasteTally.set(t.wasteType, (wasteTally.get(t.wasteType) ?? 0) + 1);

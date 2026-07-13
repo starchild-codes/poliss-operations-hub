@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, EmptyState } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { StatusBadge, statusBarColor } from "@/components/status-badge";
+import { statusBarColor } from "@/components/status-badge";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import {
   Plus,
   Download,
@@ -33,8 +36,9 @@ import {
   cleanupLocations,
   pendingRegistrationCount,
   collectorsAssignedTodayCount,
-  collectorsAwaitingReviewCount,
+  collectorsWithPendingSubmissionsCount,
   topCollectors,
+  formatFriendlyDateTime,
   type ActivityItem,
 } from "@/lib/mock-data";
 
@@ -50,10 +54,6 @@ export const Route = createFileRoute("/")({
 
 function formatWaste(kg: number) {
   return kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${kg} kg`;
-}
-
-function timeOnly(dateStr: string) {
-  return dateStr.split(" ")[1] ?? dateStr;
 }
 
 const activityIcon: Record<ActivityItem["type"], React.ReactNode> = {
@@ -88,7 +88,7 @@ function OverviewPage() {
         }
       />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-4 p-5">
         {/* Primary metrics */}
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi label="Open Tasks" value={openTasksCount} icon={<Clock className="h-4 w-4" />} />
@@ -98,28 +98,28 @@ function OverviewPage() {
         </section>
 
         {/* Secondary metrics */}
-        <section className="grid grid-cols-2 gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-4">
-          <SecondaryStat label="Completion Rate" value={`${completionRate}%`} hint="Approved ÷ decided submissions" />
-          <SecondaryStat label="Acceptance Rate" value={`${acceptanceRate}%`} hint="Accepted ÷ accepted + declined" />
-          <SecondaryStat label="Est. Waste Collected" value={formatWaste(estimatedWasteCollectedKg)} hint="Sum of approved submissions" />
-          <SecondaryStat label="Overdue Tasks" value={overdueTasksCount} hint="Past due, not yet resolved" tone={overdueTasksCount > 0 ? "warning" : "default"} />
+        <section className="grid grid-cols-2 gap-3 rounded-md border border-border bg-card p-3.5 sm:grid-cols-4">
+          <SecondaryStat label="Completion Rate" value={`${completionRate}%`} hint="Tasks completed once assigned" />
+          <SecondaryStat label="Acceptance Rate" value={`${acceptanceRate}%`} hint="Collectors who accept assigned work" />
+          <SecondaryStat label="Est. Waste Collected" value={formatWaste(estimatedWasteCollectedKg)} hint="From approved cleanups only" />
+          <SecondaryStat label="Overdue Tasks" value={overdueTasksCount} hint="Active tasks past their due date" tone={overdueTasksCount > 0 ? "warning" : "default"} />
         </section>
 
         {/* Cleanup activity + status breakdown */}
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <div className="lg:col-span-2 rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
+            <div className="border-b border-border px-4 py-2.5">
               <h2 className="text-sm font-semibold text-foreground">Cleanup Activity</h2>
               <p className="text-xs text-muted-foreground">Assigned, submitted, and approved over the last 7 days</p>
             </div>
-            <div className="px-4 pt-4">
+            <div className="px-4 pt-3">
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <Legend swatch="bg-primary-dark" label="Assigned" />
                 <Legend swatch="bg-indigo" label="Submitted" />
                 <Legend swatch="bg-teal" label="Approved" />
               </div>
             </div>
-            <div className="flex gap-3 px-4 pb-4 pt-4 h-44">
+            <div className="flex gap-3 px-4 pb-3 pt-3 h-32">
               {cleanupActivity.map((d) => (
                 <div key={d.day} className="flex flex-1 flex-col items-center gap-1.5">
                   <div className="flex w-full flex-1 items-end justify-center gap-0.5">
@@ -134,12 +134,12 @@ function OverviewPage() {
           </div>
 
           <div className="rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
+            <div className="border-b border-border px-4 py-2.5">
               <h2 className="text-sm font-semibold text-foreground">Task Status Breakdown</h2>
               <p className="text-xs text-muted-foreground">{totalStatusCount} tasks in the pilot</p>
             </div>
-            <div className="px-4 pt-4">
-              <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="px-4 pt-3">
+              <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
                 {taskStatusBreakdown.filter((s) => s.count > 0).map((s) => (
                   <div
                     key={s.status}
@@ -150,7 +150,7 @@ function OverviewPage() {
                 ))}
               </div>
             </div>
-            <ul className="grid grid-cols-1 gap-1.5 p-4 pt-3 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-1 p-4 pt-2.5 sm:grid-cols-2">
               {taskStatusBreakdown.map((s) => (
                 <li key={s.status} className="flex items-center gap-1.5 text-xs">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${statusBarColor[s.status]}`} />
@@ -164,7 +164,7 @@ function OverviewPage() {
 
         {/* Tasks needing review */}
         <section className="rounded-md border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Tasks Needing Review</h2>
               <p className="text-xs text-muted-foreground">Submitted proof awaiting your decision</p>
@@ -182,36 +182,44 @@ function OverviewPage() {
               />
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {tasksNeedingReview.map((s) => (
-                <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-foreground">{s.taskTitle}</div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                      <span>{s.collector}</span>
-                      <span>·</span>
-                      <span className="inline-flex items-center gap-0.5"><MapPin className="h-3 w-3" />{s.zone}</span>
-                      <span>·</span>
-                      <span>Submitted {timeOnly(s.submittedAt)}</span>
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-xs text-muted-foreground">
-                    {s.wasteType} · {s.quantityKg} kg
-                  </div>
-                  <div className="shrink-0 text-xs font-medium capitalize text-foreground">{s.priority}</div>
-                  <Button asChild size="sm" variant="outline" className="shrink-0">
-                    <Link to="/review" search={{ taskId: s.taskId }}>Review</Link>
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Collector &amp; zone</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead>Waste</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tasksNeedingReview.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="max-w-[220px] truncate font-medium text-foreground">{s.taskTitle}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <div>{s.collector}</div>
+                      <div className="inline-flex items-center gap-0.5 text-xs"><MapPin className="h-3 w-3" />{s.zone}</div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatFriendlyDateTime(s.submittedAt)}</TableCell>
+                    <TableCell className="text-muted-foreground">{s.wasteType} · {s.quantityKg} kg</TableCell>
+                    <TableCell className="capitalize text-foreground">{s.priority}</TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/review" search={{ taskId: s.taskId }}>Review</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </section>
 
         {/* Recent activity + cleanup locations */}
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
+        <section className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-stretch">
+          <div className="flex flex-col rounded-md border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
               <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
             </div>
             {recentActivity.length === 0 ? (
@@ -219,15 +227,15 @@ function OverviewPage() {
                 <EmptyState title="No recent activity" description="Activity will appear here as tasks move through the pipeline." />
               </div>
             ) : (
-              <ul className="divide-y divide-border">
+              <ul className="flex-1 divide-y divide-border">
                 {recentActivity.map((a) => (
-                  <li key={a.id} className="flex items-start gap-2.5 px-4 py-3">
+                  <li key={a.id} className="flex items-start gap-2.5 px-4 py-2.5">
                     <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
                       {activityIcon[a.type]}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm text-foreground">{a.message}</p>
-                      <p className="text-xs text-muted-foreground">{a.timestamp}</p>
+                      <p className="text-xs text-muted-foreground">{formatFriendlyDateTime(a.timestamp)}</p>
                     </div>
                   </li>
                 ))}
@@ -235,14 +243,14 @@ function OverviewPage() {
             )}
           </div>
 
-          <div className="lg:col-span-2 rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
+          <div className="flex flex-col lg:col-span-2 rounded-md border border-border bg-card">
+            <div className="border-b border-border px-4 py-2.5">
               <h2 className="text-sm font-semibold text-foreground">Cleanup Locations</h2>
               <p className="text-xs text-muted-foreground">Pilot zones · open vs. completed</p>
             </div>
-            <ul className="divide-y divide-border">
+            <ul className="flex-1 divide-y divide-border">
               {cleanupLocations.map((z) => (
-                <li key={z.zone} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+                <li key={z.zone} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                   <span className="w-20 shrink-0 text-sm font-medium text-foreground">{z.zone}</span>
                   <span className="text-xs text-muted-foreground">{z.openTasks} open</span>
                   <span className="text-xs text-muted-foreground">{z.completedTasks} completed</span>
@@ -258,24 +266,24 @@ function OverviewPage() {
 
         {/* Collector activity */}
         <section className="rounded-md border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
+          <div className="border-b border-border px-4 py-2.5">
             <h2 className="text-sm font-semibold text-foreground">Collector Activity</h2>
           </div>
-          <div className="grid grid-cols-2 gap-3 border-b border-border p-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 border-b border-border p-3.5 sm:grid-cols-4">
             <SecondaryStat label="Active Collectors" value={activeCollectorsCount} />
             <SecondaryStat label="Pending Registration" value={pendingRegistrationCount} />
             <SecondaryStat label="Assigned Today" value={collectorsAssignedTodayCount} />
-            <SecondaryStat label="Awaiting Review" value={collectorsAwaitingReviewCount} />
+            <SecondaryStat label="Collectors With Pending Submissions" value={collectorsWithPendingSubmissionsCount} />
           </div>
           <ul className="divide-y divide-border">
             {topCollectors.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+              <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                 <span className="w-36 shrink-0 truncate text-sm font-medium text-foreground">{c.name}</span>
                 <span className="w-16 shrink-0 text-xs text-muted-foreground">{c.zone}</span>
                 <span className="text-xs text-muted-foreground">{c.tasksCompleted} completed</span>
                 <span className="text-xs text-muted-foreground">{c.approvalRate}% approval</span>
                 <span className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
-                  Last active {c.lastActiveAt}
+                  Last active {formatFriendlyDateTime(c.lastActiveAt)}
                 </span>
               </li>
             ))}
@@ -315,17 +323,17 @@ function Kpi({
       ? "text-warning"
       : "text-muted-foreground";
   return (
-    <div className="rounded-md border border-border bg-card p-4">
+    <div className="rounded-md border border-border bg-card p-3.5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </span>
         <span className={toneClass}>{icon}</span>
       </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+      <div className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
         {value}
       </div>
-      {delta && <div className={`mt-1 text-xs ${toneClass}`}>{delta}</div>}
+      {delta && <div className={`mt-0.5 text-xs ${toneClass}`}>{delta}</div>}
     </div>
   );
 }
