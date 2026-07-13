@@ -13,6 +13,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as CollectorsRouteImport } from './routes/collectors'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -36,6 +37,11 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CollectorsRoute = CollectorsRouteImport.update({
   id: '/collectors',
   path: '/collectors',
@@ -50,6 +56,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/collectors': typeof CollectorsRoute
+  '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/collectors': typeof CollectorsRoute
+  '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/collectors': typeof CollectorsRoute
+  '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -77,16 +86,25 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/collectors'
+    | '/login'
     | '/reports'
     | '/review'
     | '/settings'
     | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/collectors' | '/reports' | '/review' | '/settings' | '/tasks'
+  to:
+    | '/'
+    | '/collectors'
+    | '/login'
+    | '/reports'
+    | '/review'
+    | '/settings'
+    | '/tasks'
   id:
     | '__root__'
     | '/'
     | '/collectors'
+    | '/login'
     | '/reports'
     | '/review'
     | '/settings'
@@ -96,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CollectorsRoute: typeof CollectorsRoute
+  LoginRoute: typeof LoginRoute
   ReportsRoute: typeof ReportsRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
@@ -132,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/collectors': {
       id: '/collectors'
       path: '/collectors'
@@ -152,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CollectorsRoute: CollectorsRoute,
+  LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
