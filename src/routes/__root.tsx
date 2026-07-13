@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -81,20 +82,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Poliss — Cleanup Operations" },
-      { name: "description", content: "Poliss helps government teams, NGOs, and cleanup operators create tasks, assign collectors, review proof, and generate operational reports." },
-      { name: "author", content: "Poliss" },
-      { property: "og:title", content: "Poliss — Cleanup Operations" },
-      { property: "og:description", content: "Operations dashboard for municipal and NGO waste collection teams." },
+      { title: "Polis Systems — Operations Platform" },
+      { name: "description", content: "Polis Systems helps government teams, NGOs, and cleanup operators create tasks, assign collectors, review proof, and generate operational reports." },
+      { name: "author", content: "Polis Systems" },
+      { property: "og:title", content: "Polis Systems — Operations Platform" },
+      { property: "og:description", content: "Operations platform for municipal and NGO waste collection teams." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" },
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -119,20 +120,26 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const isAuthRoute = pathname === "/login";
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background">
-            <AppHeader />
-            <main className="flex-1">
-              <Outlet />
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+      {isAuthRoute ? (
+        <Outlet />
+      ) : (
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full bg-background">
+            <AppSidebar />
+            <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background">
+              <AppHeader />
+              <main className="flex-1">
+                <Outlet />
+              </main>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      )}
       <Toaster position="top-right" />
     </QueryClientProvider>
   );

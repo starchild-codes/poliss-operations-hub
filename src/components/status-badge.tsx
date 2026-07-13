@@ -2,17 +2,24 @@ import { cn } from "@/lib/utils";
 import type { TaskStatus, Priority } from "@/lib/mock-data";
 
 const statusStyles: Record<TaskStatus, string> = {
+  // Draft/open — grey
   open: "bg-muted text-muted-foreground border-border",
-  assigned: "bg-primary/10 text-primary-dark border-primary/20",
-  in_progress: "bg-highlight/40 text-primary-dark border-highlight",
-  submitted: "bg-warning/15 text-warning border-warning/30",
-  approved: "bg-primary/15 text-primary-dark border-primary/30",
+  // Assigned — blue
+  assigned: "bg-primary/10 text-primary border-primary/25",
+  // In progress — stronger blue
+  in_progress: "bg-primary/15 text-primary-dark border-primary/30",
+  // Submitted — indigo
+  submitted: "bg-indigo/10 text-indigo border-indigo/25",
+  // Approved — green
+  approved: "bg-success/12 text-success border-success/30",
+  // Rejected — red
   rejected: "bg-destructive/10 text-destructive border-destructive/25",
-  canceled: "bg-muted text-muted-foreground border-border line-through",
+  // Canceled — muted grey-red
+  canceled: "bg-muted text-muted-foreground/80 border-border line-through",
 };
 
 const statusLabels: Record<TaskStatus, string> = {
-  open: "Open",
+  open: "Draft",
   assigned: "Assigned",
   in_progress: "In progress",
   submitted: "Submitted",
@@ -25,7 +32,7 @@ export function StatusBadge({ status, className }: { status: TaskStatus; classNa
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium tracking-tight",
         statusStyles[status],
         className,
       )}

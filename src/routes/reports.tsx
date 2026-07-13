@@ -7,7 +7,7 @@ import { zoneBreakdown, weeklyCompleted } from "@/lib/mock-data";
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
-      { title: "Reports — Poliss" },
+      { title: "Reports — Polis Systems" },
       { name: "description", content: "Generate and download operational reports." },
     ],
   }),

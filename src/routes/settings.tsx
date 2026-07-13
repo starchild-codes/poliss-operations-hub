@@ -9,7 +9,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Poliss" },
+      { title: "Settings — Polis Systems" },
       { name: "description", content: "Configure your organisation, zones, and notifications." },
     ],
   }),
@@ -33,7 +33,7 @@ function SettingsPage() {
             <Input defaultValue="Bengaluru Urban, Karnataka" />
           </Field>
           <Field label="Support email">
-            <Input defaultValue="ops@poliss.example.in" type="email" />
+            <Input defaultValue="ops@polissystems.example.in" type="email" />
           </Field>
         </Section>
 
