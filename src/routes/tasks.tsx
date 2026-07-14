@@ -71,8 +71,9 @@ function TasksPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
-  const collectorNames = useMemo(() => Array.from(new Set(collectors.map((c) => c.name))), []);
-  const assignableCollectorNames = useMemo(() => computeAssignableCollectors().map((c) => c.name), []);
+  const collectors = useCollectorStore();
+  const collectorNames = useMemo(() => Array.from(new Set(collectors.map((c) => c.name))), [collectors]);
+  const assignableCollectorNames = useMemo(() => computeAssignableCollectors(collectors).map((c) => c.name), [collectors]);
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
