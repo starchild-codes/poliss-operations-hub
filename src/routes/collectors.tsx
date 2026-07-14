@@ -420,7 +420,7 @@ function CollectorFormSheet({
   const [errors, setErrors] = useState<FormErrors>({});
 
   // Reset form when the sheet opens or the editing target changes.
-  useMemo(() => {
+  useEffect(() => {
     if (open) {
       setValues(editing ? {
         name: editing.name,
