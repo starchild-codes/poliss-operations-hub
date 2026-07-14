@@ -111,7 +111,7 @@ CREATE TABLE collectors (
   last_active_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT collectors_phone_e164_format CHECK (phone_e164 LIKE '+%')
+  CONSTRAINT collectors_phone_e164_format CHECK (phone_e164 ~ '^\+[1-9][0-9]{7,14}$')
 );
 
 CREATE TABLE tasks (
