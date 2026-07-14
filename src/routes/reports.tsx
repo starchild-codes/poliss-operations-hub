@@ -20,19 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge, statusBarColor } from "@/components/status-badge";
-import {
-  Clock,
-  ShieldCheck,
-  CheckCircle2,
-  Users,
-  Download,
-  Filter,
-  BarChart3,
-  MapPin,
-  Trash2,
-  TrendingUp,
-  CalendarDays,
-} from "lucide-react";
+import { Clock, ShieldCheck, CircleCheck as CheckCircle2, Users, Download, ListFilter as Filter, ChartBar as BarChart3, MapPin, Trash2, TrendingUp, CalendarDays } from "lucide-react";
 import {
   ZONES,
   HOTSPOT_TYPES,
