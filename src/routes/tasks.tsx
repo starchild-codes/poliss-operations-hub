@@ -71,7 +71,7 @@ function TasksPage() {
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   const collectorNames = useMemo(() => Array.from(new Set(collectors.map((c) => c.name))), []);
-  const assignableCollectorNames = useMemo(() => assignableCollectors.map((c) => c.name), []);
+  const assignableCollectorNames = useMemo(() => computeAssignableCollectors().map((c) => c.name), []);
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
@@ -373,7 +373,7 @@ function TasksPage() {
         task={liveSelectedTask}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        collectors={assignableCollectors}
+        collectors={computeAssignableCollectors()}
         onAction={handleDrawerAction}
       />
 
