@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  collectors, assignableCollectors, formatFriendlyDate, isTaskOverdue,
+  collectors, computeAssignableCollectors, formatFriendlyDate, isTaskOverdue,
   type TaskStatus, type Zone, type Priority, type Task,
 } from "@/lib/mock-data";
 import { useTaskStore, taskStoreActions, type NewTaskInput } from "@/lib/task-store";
