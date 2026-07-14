@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { collectors } from "@/lib/mock-data";
+import { collectors, computeCollectorStats } from "@/lib/mock-data";
 import { Plus, Star } from "lucide-react";
 
 export const Route = createFileRoute("/collectors")({
