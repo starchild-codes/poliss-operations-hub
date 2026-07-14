@@ -18,10 +18,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  collectors, computeAssignableCollectors, formatFriendlyDate, isTaskOverdue,
+  computeAssignableCollectors, formatFriendlyDate, isTaskOverdue,
   type TaskStatus, type Zone, type Priority, type Task,
 } from "@/lib/mock-data";
 import { useTaskStore, taskStoreActions, type NewTaskInput } from "@/lib/task-store";
+import { useCollectorStore } from "@/lib/collector-store";
 import { CreateTaskSheet } from "@/components/tasks/create-task-sheet";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
 import { Plus, Search, X, ListFilter, MoreHorizontal, AlertTriangle } from "lucide-react";
