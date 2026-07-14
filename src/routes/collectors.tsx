@@ -25,7 +25,7 @@ function CollectorsPage() {
     <>
       <PageHeader
         title="Collectors"
-        description={`${collectors.filter((c) => c.active).length} active · ${collectors.length} total`}
+        description={`${collectors.filter((c) => c.status === "active").length} active · ${collectors.length} total`}
         actions={
           <Button size="sm" className="gap-1.5">
             <Plus className="h-4 w-4" /> Add collector
