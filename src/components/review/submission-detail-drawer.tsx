@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   formatFriendlyDateTime, formatFriendlyDate, CHECKLIST_LABELS, REJECTION_REASONS,
+  computeCollectorStats,
   type Task, type Collector, type RejectionReason, type VerificationChecklist,
 } from "@/lib/mock-data";
 import type { SubmissionWithChecklist } from "@/lib/submission-store";
