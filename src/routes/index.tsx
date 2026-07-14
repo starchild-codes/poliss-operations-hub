@@ -43,6 +43,7 @@ import {
 } from "@/lib/mock-data";
 import { useTaskStore } from "@/lib/task-store";
 import { useSubmissionStore } from "@/lib/submission-store";
+import { useCollectorStore } from "@/lib/collector-store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
