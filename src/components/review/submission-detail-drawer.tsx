@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   formatFriendlyDateTime, formatFriendlyDate, CHECKLIST_LABELS, REJECTION_REASONS,
+  computeCollectorStats,
   type Task, type Collector, type RejectionReason, type VerificationChecklist,
 } from "@/lib/mock-data";
 import type { SubmissionWithChecklist } from "@/lib/submission-store";
@@ -104,8 +105,9 @@ export function SubmissionDetailDrawer({
               <Detail icon={<User className="h-3.5 w-3.5" />} label="Collector" value={submission.collector} />
               <Detail icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={collector?.phone ?? "—"} />
               <Detail icon={<MapPin className="h-3.5 w-3.5" />} label="Zone" value={collector?.zone ?? submission.zone} />
-              <Detail label="Tasks completed" value={collector ? String(collector.tasksCompleted) : "—"} />
-              <Detail label="Approval rate" value={collector ? `${collector.approvalRate}%` : "—"} />
+              <Detail label="Tasks completed" value={collector ? String(computeCollectorStats(collector.name).tasksApproved) : "—"} />
+              <Detail label="Approval rate" value={collector ? `${computeCollectorStats(collector.name).approvalRate}%` : "—"} />
+
             </section>
 
             {/* Proof of work */}

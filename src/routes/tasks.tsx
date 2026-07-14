@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  collectors, assignableCollectors, formatFriendlyDate, isTaskOverdue,
+  collectors, computeAssignableCollectors, formatFriendlyDate, isTaskOverdue,
   type TaskStatus, type Zone, type Priority, type Task,
 } from "@/lib/mock-data";
 import { useTaskStore, taskStoreActions, type NewTaskInput } from "@/lib/task-store";
@@ -71,7 +71,7 @@ function TasksPage() {
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   const collectorNames = useMemo(() => Array.from(new Set(collectors.map((c) => c.name))), []);
-  const assignableCollectorNames = useMemo(() => assignableCollectors.map((c) => c.name), []);
+  const assignableCollectorNames = useMemo(() => computeAssignableCollectors().map((c) => c.name), []);
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
@@ -373,7 +373,7 @@ function TasksPage() {
         task={liveSelectedTask}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        collectors={assignableCollectors}
+        collectors={computeAssignableCollectors()}
         onAction={handleDrawerAction}
       />
 

@@ -23,8 +23,8 @@ import {
   computeOpenTasksCount,
   computeAwaitingReviewCount,
   computeApprovedTasksCount,
-  activeCollectorsCount,
-  totalCollectorsCount,
+  computeActiveCollectorsCount,
+  computeTotalCollectorsCount,
   computeCompletionRate,
   computeAcceptanceRate,
   computeEstimatedWasteCollectedKg,
@@ -34,7 +34,7 @@ import {
   computeTasksNeedingReview,
   recentActivity,
   computeCleanupLocations,
-  pendingRegistrationCount,
+  computePendingRegistrationCount,
   computeCollectorsAssignedTodayCount,
   computeCollectorsWithPendingSubmissionsCount,
   computeTopCollectors,
@@ -84,6 +84,9 @@ function OverviewPage() {
   const topCollectors = computeTopCollectors(tasks);
   const tasksNeedingReview = computeTasksNeedingReview(submissions);
   const collectorsWithPendingSubmissionsCount = computeCollectorsWithPendingSubmissionsCount(submissions);
+  const activeCollectorsCount = computeActiveCollectorsCount();
+  const totalCollectorsCount = computeTotalCollectorsCount();
+  const pendingRegistrationCount = computePendingRegistrationCount();
 
   const maxDailyValue = Math.max(1, ...cleanupActivity.flatMap((d) => [d.assigned, d.submitted, d.approved]));
   const totalStatusCount = Math.max(1, taskStatusBreakdown.reduce((s, x) => s + x.count, 0));
@@ -299,7 +302,7 @@ function OverviewPage() {
               <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                 <span className="w-36 shrink-0 truncate text-sm font-medium text-foreground">{c.name}</span>
                 <span className="w-16 shrink-0 text-xs text-muted-foreground">{c.zone}</span>
-                <span className="text-xs text-muted-foreground">{c.tasksCompleted} completed</span>
+                <span className="text-xs text-muted-foreground">{c.tasksApproved} completed</span>
                 <span className="text-xs text-muted-foreground">{c.approvalRate}% approval</span>
                 <span className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
                   Last active {formatFriendlyDateTime(c.lastActiveAt)}
