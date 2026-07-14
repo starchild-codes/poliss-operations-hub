@@ -71,6 +71,7 @@ const activityIcon: Record<ActivityItem["type"], React.ReactNode> = {
 function OverviewPage() {
   const { tasks } = useTaskStore();
   const submissions = useSubmissionStore();
+  const collectors = useCollectorStore();
   const openTasksCount = computeOpenTasksCount(tasks);
   const awaitingReviewCount = computeAwaitingReviewCount(tasks);
   const approvedTasksCount = computeApprovedTasksCount(tasks);
@@ -82,12 +83,12 @@ function OverviewPage() {
   const taskStatusBreakdown = computeTaskStatusBreakdown(tasks);
   const cleanupActivity = computeCleanupActivity(tasks, submissions);
   const cleanupLocations = computeCleanupLocations(tasks);
-  const topCollectors = computeTopCollectors(tasks);
+  const topCollectors = computeTopCollectors(tasks, collectors, submissions);
   const tasksNeedingReview = computeTasksNeedingReview(submissions);
   const collectorsWithPendingSubmissionsCount = computeCollectorsWithPendingSubmissionsCount(submissions);
-  const activeCollectorsCount = computeActiveCollectorsCount();
-  const totalCollectorsCount = computeTotalCollectorsCount();
-  const pendingRegistrationCount = computePendingRegistrationCount();
+  const activeCollectorsCount = computeActiveCollectorsCount(collectors);
+  const totalCollectorsCount = computeTotalCollectorsCount(collectors);
+  const pendingRegistrationCount = computePendingRegistrationCount(collectors);
 
   const maxDailyValue = Math.max(1, ...cleanupActivity.flatMap((d) => [d.assigned, d.submitted, d.approved]));
   const totalStatusCount = Math.max(1, taskStatusBreakdown.reduce((s, x) => s + x.count, 0));
