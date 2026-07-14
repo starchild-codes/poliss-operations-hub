@@ -77,6 +77,19 @@ export interface Task {
   hasReferencePhoto?: boolean;
 }
 
+export const REJECTION_REASONS = [
+  "Missing before photo",
+  "Missing after photo",
+  "Photos unclear",
+  "Wrong location",
+  "Cleanup incomplete",
+  "Quantity estimate missing",
+  "Waste type missing",
+  "Duplicate submission",
+  "Other",
+] as const;
+export type RejectionReason = (typeof REJECTION_REASONS)[number];
+
 export interface Submission {
   id: string;
   taskId: string;
@@ -87,10 +100,66 @@ export interface Submission {
   wasteType: WasteType;
   quantityKg: number;
   submittedAt: string;
+  /** GPS coordinates attached to the field submission — compared against the task's location to sanity-check proximity. */
+  latitude: number;
+  longitude: number;
+  /** Whether the collector attached a before/after photo. A pilot-scale approximation of real proof-of-work uploads. */
+  hasBeforePhoto: boolean;
+  hasAfterPhoto: boolean;
   /** When a reviewer approved or rejected the submission. Undefined while pending. */
   decidedAt?: string;
   status: "pending" | "approved" | "rejected";
   note?: string;
+  /** Set once a reviewer makes a decision. */
+  reviewer?: string;
+  rejectionReason?: RejectionReason;
+  /** Required free-text explanation when rejectionReason is "Other"; optional context otherwise. */
+  rejectionNote?: string;
+}
+
+export interface VerificationChecklist {
+  beforePhotoPresent: boolean;
+  afterPhotoPresent: boolean;
+  visibleImprovement: boolean;
+  wasteTypeProvided: boolean;
+  quantityProvided: boolean;
+  locationNearTask: boolean;
+  submittedNearDueDate: boolean;
+}
+
+export const CHECKLIST_LABELS: Record<keyof VerificationChecklist, string> = {
+  beforePhotoPresent: "Before photo is present",
+  afterPhotoPresent: "After photo is present",
+  visibleImprovement: "Visible improvement is shown",
+  wasteTypeProvided: "Waste type is provided",
+  quantityProvided: "Quantity estimate is provided",
+  locationNearTask: "Submission location is reasonably close to task location",
+  submittedNearDueDate: "Submission was made near the due date",
+};
+
+// Rough flat-earth distance in km — adequate for a single-city pilot's proximity check.
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const kmPerDegLat = 111;
+  const kmPerDegLon = 111 * Math.cos((lat1 * Math.PI) / 180);
+  const dLat = (lat1 - lat2) * kmPerDegLat;
+  const dLon = (lon1 - lon2) * kmPerDegLon;
+  return Math.sqrt(dLat * dLat + dLon * dLon);
+}
+
+// Sensible starting checklist state, derived from the submission and its task — the operator can
+// still toggle any item by hand, this just avoids presenting an all-unchecked list by default.
+export function buildDefaultChecklist(submission: Submission, task: Task | undefined): VerificationChecklist {
+  const nearLocation = task ? distanceKm(submission.latitude, submission.longitude, task.latitude, task.longitude) <= 0.5 : false;
+  const nearDueDate = task ? Math.abs(toTimestamp(submission.submittedAt) - toTimestamp(task.dueAt)) <= 2 * 86_400_000 : false;
+  return {
+    beforePhotoPresent: submission.hasBeforePhoto,
+    afterPhotoPresent: submission.hasAfterPhoto,
+    visibleImprovement: submission.hasBeforePhoto && submission.hasAfterPhoto,
+    wasteTypeProvided: !!submission.wasteType,
+    quantityProvided: submission.quantityKg > 0,
+    locationNearTask: nearLocation,
+    submittedNearDueDate: nearDueDate,
+  };
 }
 
 export interface TaskEvent {
@@ -151,17 +220,20 @@ const tasksBase: Omit<Task, "updatedAt">[] = [
   { id: "T-2062", title: "Railway underpass cleanup", description: "Waste clearance ahead of the evening commute at the underpass.", location: "Yeshwanthpur Underpass", latitude: 13.0284, longitude: 77.5407, zone: "North", status: "approved", priority: "high", hotspotType: "Mixed waste", assignee: "Kavita Joshi", createdBy: "Ananya Rao", createdAt: "2026-07-13 08:00", dueAt: "2026-07-13 17:00", wasteType: "Mixed Municipal", estimatedWasteKg: 150 },
 ];
 
+// `latitude`/`longitude` sit close to the linked task's own coordinates (a realistic on-site GPS
+// reading) except S-512, which is deliberately ~2km off and missing its before-photo — a
+// pilot example of a submission the checklist should flag rather than something to hand-fix.
 export const submissions: Submission[] = [
-  { id: "S-511", taskId: "T-2041", taskTitle: "Garbage overflow near bus stand", collector: "Deepak Yadav", zone: "Central", priority: "high", wasteType: "Mixed Municipal", quantityKg: 180, submittedAt: "2026-07-12 16:22", status: "pending", note: "Cleared 3 bins, photos attached." },
-  { id: "S-512", taskId: "T-2045", taskTitle: "Market waste pile-up", collector: "Deepak Yadav", zone: "Central", priority: "high", wasteType: "Organic", quantityKg: 210, submittedAt: "2026-07-12 17:04", status: "pending", note: "Stall row 4 cleared." },
-  { id: "S-513", taskId: "T-2046", taskTitle: "Plastic dump near lake", collector: "Mohammed Irfan", zone: "East", priority: "high", wasteType: "Plastic", quantityKg: 150, submittedAt: "2026-07-11 15:40", decidedAt: "2026-07-11 16:00", status: "rejected", note: "Photos unclear, revisit needed." },
-  { id: "S-514", taskId: "T-2047", taskTitle: "School premises cleanup", collector: "Sunita Patil", zone: "West", priority: "low", wasteType: "Mixed Municipal", quantityKg: 60, submittedAt: "2026-07-10 12:11", decidedAt: "2026-07-11 09:00", status: "approved", note: "Verified by ward officer." },
-  { id: "S-515", taskId: "T-2057", taskTitle: "Industrial estate cleanup", collector: "Mohammed Irfan", zone: "East", priority: "high", wasteType: "Construction Debris", quantityKg: 550, submittedAt: "2026-07-12 18:00", status: "pending", note: "Debris bagged, awaiting truck pickup confirmation." },
-  { id: "S-516", taskId: "T-2058", taskTitle: "Highway shoulder cleanup", collector: "Ravi Kumar", zone: "North", priority: "medium", wasteType: "Mixed Municipal", quantityKg: 210, submittedAt: "2026-07-08 17:00", decidedAt: "2026-07-09 10:00", status: "approved", note: "Shoulder cleared both directions." },
-  { id: "S-517", taskId: "T-2059", taskTitle: "Ward 5 plastic removal", collector: "Deepak Yadav", zone: "Central", priority: "high", wasteType: "Plastic", quantityKg: 260, submittedAt: "2026-07-09 16:00", decidedAt: "2026-07-10 09:00", status: "approved", note: "Segregated for recycling pickup." },
-  { id: "S-518", taskId: "T-2060", taskTitle: "Canal desilting support", collector: "Deepak Yadav", zone: "Central", priority: "medium", wasteType: "Sewage/Sludge", quantityKg: 700, submittedAt: "2026-07-10 17:30", decidedAt: "2026-07-11 11:00", status: "approved", note: "Desilted 40m stretch, verified by engineer." },
-  { id: "S-519", taskId: "T-2061", taskTitle: "Community park cleanup", collector: "Anita Sharma", zone: "South", priority: "low", wasteType: "Organic", quantityKg: 90, submittedAt: "2026-07-12 15:00", decidedAt: "2026-07-12 18:00", status: "approved", note: "Leaf litter and organic waste composted on-site." },
-  { id: "S-520", taskId: "T-2062", taskTitle: "Railway underpass cleanup", collector: "Kavita Joshi", zone: "North", priority: "high", wasteType: "Mixed Municipal", quantityKg: 150, submittedAt: "2026-07-13 09:30", decidedAt: "2026-07-13 11:00", status: "approved", note: "Underpass cleared before evening commute." },
+  { id: "S-511", taskId: "T-2041", taskTitle: "Garbage overflow near bus stand", collector: "Deepak Yadav", zone: "Central", priority: "high", wasteType: "Mixed Municipal", quantityKg: 180, submittedAt: "2026-07-12 16:22", status: "pending", note: "Cleared 3 bins, photos attached.", latitude: 12.9758, longitude: 77.6070, hasBeforePhoto: true, hasAfterPhoto: true },
+  { id: "S-512", taskId: "T-2045", taskTitle: "Market waste pile-up", collector: "Deepak Yadav", zone: "Central", priority: "high", wasteType: "Organic", quantityKg: 210, submittedAt: "2026-07-12 17:04", status: "pending", note: "Stall row 4 cleared.", latitude: 12.9820, longitude: 77.5940, hasBeforePhoto: false, hasAfterPhoto: true },
+  { id: "S-513", taskId: "T-2046", taskTitle: "Plastic dump near lake", collector: "Mohammed Irfan", zone: "East", priority: "high", wasteType: "Plastic", quantityKg: 150, submittedAt: "2026-07-11 15:40", decidedAt: "2026-07-11 16:00", status: "rejected", note: "Photos unclear, revisit needed.", latitude: 12.9263, longitude: 77.6758, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao", rejectionReason: "Photos unclear" },
+  { id: "S-514", taskId: "T-2047", taskTitle: "School premises cleanup", collector: "Sunita Patil", zone: "West", priority: "low", wasteType: "Mixed Municipal", quantityKg: 60, submittedAt: "2026-07-10 12:11", decidedAt: "2026-07-11 09:00", status: "approved", note: "Verified by ward officer.", latitude: 12.9913, longitude: 77.5543, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao" },
+  { id: "S-515", taskId: "T-2057", taskTitle: "Industrial estate cleanup", collector: "Mohammed Irfan", zone: "East", priority: "high", wasteType: "Construction Debris", quantityKg: 550, submittedAt: "2026-07-12 18:00", status: "pending", note: "Debris bagged, awaiting truck pickup confirmation.", latitude: 13.0281, longitude: 77.5410, hasBeforePhoto: true, hasAfterPhoto: true },
+  { id: "S-516", taskId: "T-2058", taskTitle: "Highway shoulder cleanup", collector: "Ravi Kumar", zone: "North", priority: "medium", wasteType: "Mixed Municipal", quantityKg: 210, submittedAt: "2026-07-08 17:00", decidedAt: "2026-07-09 10:00", status: "approved", note: "Shoulder cleared both directions.", latitude: 13.0452, longitude: 77.5223, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao" },
+  { id: "S-517", taskId: "T-2059", taskTitle: "Ward 5 plastic removal", collector: "Deepak Yadav", zone: "Central", priority: "high", wasteType: "Plastic", quantityKg: 260, submittedAt: "2026-07-09 16:00", decidedAt: "2026-07-10 09:00", status: "approved", note: "Segregated for recycling pickup.", latitude: 12.9860, longitude: 77.6060, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao" },
+  { id: "S-518", taskId: "T-2060", taskTitle: "Canal desilting support", collector: "Deepak Yadav", zone: "Central", priority: "medium", wasteType: "Sewage/Sludge", quantityKg: 700, submittedAt: "2026-07-10 17:30", decidedAt: "2026-07-11 11:00", status: "approved", note: "Desilted 40m stretch, verified by engineer.", latitude: 12.9553, longitude: 77.5223, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao" },
+  { id: "S-519", taskId: "T-2061", taskTitle: "Community park cleanup", collector: "Anita Sharma", zone: "South", priority: "low", wasteType: "Organic", quantityKg: 90, submittedAt: "2026-07-12 15:00", decidedAt: "2026-07-12 18:00", status: "approved", note: "Leaf litter and organic waste composted on-site.", latitude: 12.9403, longitude: 77.6359, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao" },
+  { id: "S-520", taskId: "T-2062", taskTitle: "Railway underpass cleanup", collector: "Kavita Joshi", zone: "North", priority: "high", wasteType: "Mixed Municipal", quantityKg: 150, submittedAt: "2026-07-13 09:30", decidedAt: "2026-07-13 11:00", status: "approved", note: "Underpass cleared before evening commute.", latitude: 13.0286, longitude: 77.5409, hasBeforePhoto: true, hasAfterPhoto: true, reviewer: "Ananya Rao" },
 ];
 
 function toTimestamp(dateStr: string): number {
@@ -337,9 +409,9 @@ export function computeAcceptanceRate(tasksList: Task[] = tasks): number {
 }
 
 // Estimated Waste Collected: approved submissions only — the only quantities that are verified.
-export const estimatedWasteCollectedKg = submissions
-  .filter((s) => s.status === "approved")
-  .reduce((sum, s) => sum + s.quantityKg, 0);
+export function computeEstimatedWasteCollectedKg(submissionsList: Submission[] = submissions): number {
+  return submissionsList.filter((s) => s.status === "approved").reduce((sum, s) => sum + s.quantityKg, 0);
+}
 
 // Overdue Tasks: past their due date and not yet approved, canceled, declined, or rejected.
 export function computeOverdueTasksCount(tasksList: Task[] = tasks): number {
@@ -354,9 +426,9 @@ export function computeCollectorsAssignedTodayCount(tasksList: Task[] = tasks): 
 
 // Distinct collectors who have at least one submission still awaiting a review decision — a
 // different count than `computeAwaitingReviewCount` above (that one counts tasks, this counts people).
-export const collectorsWithPendingSubmissionsCount = new Set(
-  submissions.filter((s) => s.status === "pending").map((s) => s.collector),
-).size;
+export function computeCollectorsWithPendingSubmissionsCount(submissionsList: Submission[] = submissions): number {
+  return new Set(submissionsList.filter((s) => s.status === "pending").map((s) => s.collector)).size;
+}
 
 export function computeTopCollectors(tasksList: Task[] = tasks, collectorsList: Collector[] = collectors) {
   const withLiveCompletions = collectorsList.map((c) => ({
@@ -410,10 +482,29 @@ export function computeTaskStatusBreakdown(tasksList: Task[] = tasks) {
   }));
 }
 
-export const tasksNeedingReview = submissions
-  .filter((s) => s.status === "pending")
-  .sort((a, b) => toTimestamp(b.submittedAt) - toTimestamp(a.submittedAt))
-  .slice(0, 3);
+export function computeTasksNeedingReview(submissionsList: Submission[] = submissions) {
+  return submissionsList
+    .filter((s) => s.status === "pending")
+    .sort((a, b) => toTimestamp(b.submittedAt) - toTimestamp(a.submittedAt))
+    .slice(0, 3);
+}
+
+// Review page summary metrics: counts by submission review status, plus the average time
+// (in minutes) between submission and reviewer decision for submissions that have been decided.
+export function computeSubmissionCounts(submissionsList: Submission[] = submissions) {
+  return {
+    pending: submissionsList.filter((s) => s.status === "pending").length,
+    approved: submissionsList.filter((s) => s.status === "approved").length,
+    rejected: submissionsList.filter((s) => s.status === "rejected").length,
+  };
+}
+
+export function computeAverageReviewMinutes(submissionsList: Submission[] = submissions): number {
+  const decided = submissionsList.filter((s) => s.decidedAt);
+  if (!decided.length) return 0;
+  const totalMinutes = decided.reduce((sum, s) => sum + (toTimestamp(s.decidedAt!) - toTimestamp(s.submittedAt)) / 60_000, 0);
+  return Math.round(totalMinutes / decided.length);
+}
 
 export interface ActivityItem {
   id: string;

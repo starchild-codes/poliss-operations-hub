@@ -143,6 +143,24 @@ export const taskStoreActions = {
     addEvent(taskId, `Resubmission requested from ${task.assignee ?? "collector"}`, now);
     emit();
   },
+
+  // Called by the submission store when a reviewer approves proof of work — keeps the task's
+  // status in lockstep with the submission decision everywhere the task is read (Tasks, Overview).
+  approveTask(taskId: string, now: string) {
+    const task = tasksState.find((t) => t.id === taskId);
+    if (!task) return;
+    touch(taskId, { status: "approved" }, now);
+    addEvent(taskId, `Submission approved by ${CURRENT_OPERATOR}`, now);
+    emit();
+  },
+
+  rejectTask(taskId: string, now: string, reason: string) {
+    const task = tasksState.find((t) => t.id === taskId);
+    if (!task) return;
+    touch(taskId, { status: "rejected" }, now);
+    addEvent(taskId, `Submission rejected by ${CURRENT_OPERATOR} — ${reason}`, now);
+    emit();
+  },
 };
 
 export function useTaskStore() {

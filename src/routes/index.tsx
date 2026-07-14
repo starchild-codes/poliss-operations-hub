@@ -27,21 +27,22 @@ import {
   totalCollectorsCount,
   computeCompletionRate,
   computeAcceptanceRate,
-  estimatedWasteCollectedKg,
+  computeEstimatedWasteCollectedKg,
   computeOverdueTasksCount,
   computeCleanupActivity,
   computeTaskStatusBreakdown,
-  tasksNeedingReview,
+  computeTasksNeedingReview,
   recentActivity,
   computeCleanupLocations,
   pendingRegistrationCount,
   computeCollectorsAssignedTodayCount,
-  collectorsWithPendingSubmissionsCount,
+  computeCollectorsWithPendingSubmissionsCount,
   computeTopCollectors,
   formatFriendlyDateTime,
   type ActivityItem,
 } from "@/lib/mock-data";
 import { useTaskStore } from "@/lib/task-store";
+import { useSubmissionStore } from "@/lib/submission-store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -68,17 +69,21 @@ const activityIcon: Record<ActivityItem["type"], React.ReactNode> = {
 
 function OverviewPage() {
   const { tasks } = useTaskStore();
+  const submissions = useSubmissionStore();
   const openTasksCount = computeOpenTasksCount(tasks);
   const awaitingReviewCount = computeAwaitingReviewCount(tasks);
   const approvedTasksCount = computeApprovedTasksCount(tasks);
   const completionRate = computeCompletionRate(tasks);
   const acceptanceRate = computeAcceptanceRate(tasks);
+  const estimatedWasteCollectedKg = computeEstimatedWasteCollectedKg(submissions);
   const overdueTasksCount = computeOverdueTasksCount(tasks);
   const collectorsAssignedTodayCount = computeCollectorsAssignedTodayCount(tasks);
   const taskStatusBreakdown = computeTaskStatusBreakdown(tasks);
-  const cleanupActivity = computeCleanupActivity(tasks);
+  const cleanupActivity = computeCleanupActivity(tasks, submissions);
   const cleanupLocations = computeCleanupLocations(tasks);
   const topCollectors = computeTopCollectors(tasks);
+  const tasksNeedingReview = computeTasksNeedingReview(submissions);
+  const collectorsWithPendingSubmissionsCount = computeCollectorsWithPendingSubmissionsCount(submissions);
 
   const maxDailyValue = Math.max(1, ...cleanupActivity.flatMap((d) => [d.assigned, d.submitted, d.approved]));
   const totalStatusCount = Math.max(1, taskStatusBreakdown.reduce((s, x) => s + x.count, 0));
@@ -184,7 +189,7 @@ function OverviewPage() {
               <p className="text-xs text-muted-foreground">Submitted proof awaiting your decision</p>
             </div>
             <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-              <Link to="/review">View all</Link>
+              <Link to="/review" search={{ taskId: undefined }}>View all</Link>
             </Button>
           </div>
           {tasksNeedingReview.length === 0 ? (

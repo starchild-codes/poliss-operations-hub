@@ -249,7 +249,7 @@ function renderActions(
     case "submitted":
       return (
         <Button asChild size="sm" className="ml-auto">
-          <Link to="/review">Review submission</Link>
+          <Link to="/review" search={{ taskId: task.id }}>Review submission</Link>
         </Button>
       );
     case "approved":
