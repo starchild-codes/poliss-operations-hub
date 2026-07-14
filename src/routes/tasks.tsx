@@ -375,7 +375,7 @@ function TasksPage() {
         task={liveSelectedTask}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        collectors={computeAssignableCollectors()}
+        collectors={computeAssignableCollectors(collectors)}
         onAction={handleDrawerAction}
       />
 
