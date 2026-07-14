@@ -43,11 +43,14 @@ function CollectorsPage() {
                 <TableHead>Zone</TableHead>
                 <TableHead className="hidden md:table-cell">Status</TableHead>
                 <TableHead className="text-right">Completed</TableHead>
-                <TableHead className="hidden lg:table-cell text-right">Rating</TableHead>
+                <TableHead className="hidden lg:table-cell text-right">Approval</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {collectors.map((c) => (
+              {collectors.map((c) => {
+                const isActive = c.status === "active";
+                const stats = computeCollectorStats(c.name);
+                return (
                 <TableRow key={c.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -68,27 +71,28 @@ function CollectorsPage() {
                     <span
                       className={
                         "inline-flex items-center gap-1.5 text-xs " +
-                        (c.active ? "text-primary" : "text-muted-foreground")
+                        (isActive ? "text-primary" : "text-muted-foreground")
                       }
                     >
                       <span
                         className={
                           "h-1.5 w-1.5 rounded-full " +
-                          (c.active ? "bg-primary" : "bg-muted-foreground/50")
+                          (isActive ? "bg-primary" : "bg-muted-foreground/50")
                         }
                       />
-                      {c.active ? "Active" : "Inactive"}
+                      {isActive ? "Active" : "Inactive"}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-foreground">{c.tasksCompleted}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-foreground">{stats.tasksApproved}</TableCell>
                   <TableCell className="hidden lg:table-cell text-right">
                     <span className="inline-flex items-center gap-1 text-sm text-foreground">
                       <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                      {c.rating.toFixed(1)}
+                      {stats.approvalRate}%
                     </span>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>
