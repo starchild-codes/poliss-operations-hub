@@ -84,6 +84,9 @@ function OverviewPage() {
   const topCollectors = computeTopCollectors(tasks);
   const tasksNeedingReview = computeTasksNeedingReview(submissions);
   const collectorsWithPendingSubmissionsCount = computeCollectorsWithPendingSubmissionsCount(submissions);
+  const activeCollectorsCount = computeActiveCollectorsCount();
+  const totalCollectorsCount = computeTotalCollectorsCount();
+  const pendingRegistrationCount = computePendingRegistrationCount();
 
   const maxDailyValue = Math.max(1, ...cleanupActivity.flatMap((d) => [d.assigned, d.submitted, d.approved]));
   const totalStatusCount = Math.max(1, taskStatusBreakdown.reduce((s, x) => s + x.count, 0));
