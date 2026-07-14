@@ -38,19 +38,30 @@ export const HOTSPOT_TYPES: HotspotType[] = [
 export const PRIORITIES: Priority[] = ["low", "medium", "high", "urgent"];
 export const ZONES: Zone[] = ["North", "South", "East", "West", "Central"];
 
+// Account status a Collectors-page operator sets directly. Distinct from "operational activity"
+// (computeCollectorIsRecentlyActive below), which reflects real recent task behavior instead.
+export type CollectorStatus = "active" | "inactive" | "suspended" | "pending";
+export const COLLECTOR_STATUSES: CollectorStatus[] = ["active", "inactive", "suspended", "pending"];
+
+export type CollectorType = "Individual" | "NGO Affiliated" | "Contractor" | "Municipal Staff";
+export const COLLECTOR_TYPES: CollectorType[] = ["Individual", "NGO Affiliated", "Contractor", "Municipal Staff"];
+
+export const PREFERRED_LANGUAGES = ["English", "Hindi", "Kannada", "Tamil", "Telugu", "Urdu"] as const;
+
 export interface Collector {
   id: string;
   name: string;
+  /** E.164-style phone number, e.g. "+919845012034" — unique across collectors. */
   phone: string;
   zone: Zone;
-  active: boolean;
-  tasksCompleted: number;
-  rating: number;
-  /** Historical proof-review approval rate for this collector (0-100). */
-  approvalRate: number;
+  status: CollectorStatus;
+  collectorType?: CollectorType;
+  /** NGO / contractor / municipal department this collector is affiliated with, if any. */
+  organization?: string;
+  preferredLanguage?: string;
+  internalNotes?: string;
+  registeredAt: string;
   lastActiveAt: string;
-  /** Present only for collectors who have signed up but not yet been approved to take tasks. */
-  registrationStatus?: "pending";
 }
 
 export interface Task {
@@ -179,17 +190,17 @@ export const CURRENT_OPERATOR = "Ananya Rao";
 // derived below from the actual tasks/submissions in this pilot, so they always reconcile with
 // what the rest of the dashboard shows (a ~22-task pilot cannot produce collectors with 100+
 // completions).
-const collectorsBase: Omit<Collector, "tasksCompleted" | "approvalRate">[] = [
-  { id: "C-101", name: "Ravi Kumar", phone: "+91 98450 12034", zone: "North", active: true, rating: 4.7, lastActiveAt: "2026-07-13 08:10" },
-  { id: "C-102", name: "Anita Sharma", phone: "+91 98860 23112", zone: "South", active: true, rating: 4.5, lastActiveAt: "2026-07-12 19:40" },
-  { id: "C-103", name: "Mohammed Irfan", phone: "+91 99012 55461", zone: "East", active: true, rating: 4.8, lastActiveAt: "2026-07-12 18:20" },
-  { id: "C-104", name: "Sunita Patil", phone: "+91 98221 88720", zone: "West", active: false, rating: 4.2, lastActiveAt: "2026-07-05 10:00" },
-  { id: "C-105", name: "Deepak Yadav", phone: "+91 97401 33298", zone: "Central", active: true, rating: 4.9, lastActiveAt: "2026-07-13 11:05" },
-  { id: "C-106", name: "Priya Menon", phone: "+91 98470 91123", zone: "South", active: true, rating: 4.4, lastActiveAt: "2026-07-12 12:20" },
-  { id: "C-107", name: "Arjun Reddy", phone: "+91 96320 42200", zone: "East", active: true, rating: 4.3, lastActiveAt: "2026-07-09 11:00" },
-  { id: "C-108", name: "Kavita Joshi", phone: "+91 98191 77340", zone: "North", active: true, rating: 4.6, lastActiveAt: "2026-07-13 09:35" },
-  { id: "C-109", name: "Farhan Sheikh", phone: "+91 90080 44210", zone: "East", active: false, rating: 0, lastActiveAt: "—", registrationStatus: "pending" },
-  { id: "C-110", name: "Meera Nair", phone: "+91 90210 66531", zone: "South", active: false, rating: 0, lastActiveAt: "—", registrationStatus: "pending" },
+export const collectors: Collector[] = [
+  { id: "C-101", name: "Ravi Kumar", phone: "+919845012034", zone: "North", status: "active", collectorType: "Individual", preferredLanguage: "Kannada", registeredAt: "2025-11-02 09:00", lastActiveAt: "2026-07-13 08:10" },
+  { id: "C-102", name: "Anita Sharma", phone: "+919886023112", zone: "South", status: "active", collectorType: "Individual", preferredLanguage: "Hindi", registeredAt: "2025-11-10 09:00", lastActiveAt: "2026-07-12 19:40" },
+  { id: "C-103", name: "Mohammed Irfan", phone: "+919901255461", zone: "East", status: "active", collectorType: "NGO Affiliated", organization: "CleanBLR Trust", preferredLanguage: "Urdu", registeredAt: "2025-12-01 09:00", lastActiveAt: "2026-07-12 18:20" },
+  { id: "C-104", name: "Sunita Patil", phone: "+919822188720", zone: "West", status: "inactive", collectorType: "Individual", preferredLanguage: "Kannada", registeredAt: "2025-10-14 09:00", lastActiveAt: "2026-07-05 10:00" },
+  { id: "C-105", name: "Deepak Yadav", phone: "+919740133298", zone: "Central", status: "active", collectorType: "Contractor", organization: "Yadav Waste Services", preferredLanguage: "Hindi", registeredAt: "2025-09-20 09:00", lastActiveAt: "2026-07-13 11:05" },
+  { id: "C-106", name: "Priya Menon", phone: "+919847091123", zone: "South", status: "active", collectorType: "Municipal Staff", organization: "BBMP Ward 155", preferredLanguage: "English", registeredAt: "2025-12-15 09:00", lastActiveAt: "2026-07-12 12:20" },
+  { id: "C-107", name: "Arjun Reddy", phone: "+919632042200", zone: "East", status: "suspended", collectorType: "Individual", preferredLanguage: "Telugu", registeredAt: "2025-11-28 09:00", lastActiveAt: "2026-07-09 11:00", internalNotes: "Suspended after repeated missed pickups — pending review." },
+  { id: "C-108", name: "Kavita Joshi", phone: "+919819177340", zone: "North", status: "active", collectorType: "Individual", preferredLanguage: "Kannada", registeredAt: "2026-01-05 09:00", lastActiveAt: "2026-07-13 09:35" },
+  { id: "C-109", name: "Farhan Sheikh", phone: "+919008044210", zone: "East", status: "pending", preferredLanguage: "Urdu", registeredAt: "2026-07-12 10:00", lastActiveAt: "—" },
+  { id: "C-110", name: "Meera Nair", phone: "+919021066531", zone: "South", status: "pending", preferredLanguage: "Tamil", registeredAt: "2026-07-13 08:00", lastActiveAt: "—" },
 ];
 
 // Raw task fields. `updatedAt` is filled in below (after `submissions` exists) from the latest
@@ -249,19 +260,59 @@ export const tasks: Task[] = tasksBase.map((t) => {
   return { ...t, updatedAt };
 });
 
-// `tasksCompleted` = approved tasks assigned to this collector; `approvalRate` = approved ÷
-// (approved + rejected) submissions for this collector. Both computed from the data above so a
-// ~22-task pilot never shows an individual collector with more completions than the pilot has
-// tasks.
-export const collectors: Collector[] = collectorsBase.map((c) => {
-  const tasksCompleted = tasks.filter((t) => t.assignee === c.name && t.status === "approved").length;
-  const decided = submissions.filter((s) => s.collector === c.name && (s.status === "approved" || s.status === "rejected"));
-  const approvalRate = decided.length ? Math.round((decided.filter((s) => s.status === "approved").length / decided.length) * 100) : 0;
-  return { ...c, tasksCompleted, approvalRate };
-});
+// Only collectors able to take on new work — used when assigning/reassigning a task. Takes a
+// live collectors list so it stays correct after Add/Edit/status-change actions on the
+// Collectors page (see `collector-store.ts`).
+export function computeAssignableCollectors(collectorsList: Collector[] = collectors): Collector[] {
+  return collectorsList.filter((c) => c.status === "active");
+}
 
-// Only collectors able to take on new work — used when assigning/reassigning a task.
-export const assignableCollectors = collectors.filter((c) => c.active && !c.registrationStatus);
+// Per-collector task/submission performance, computed live from the shared tasks/submissions
+// lists rather than stored on the collector — so a ~22-task pilot never shows a collector with
+// more completions than the pilot has tasks, and stats stay correct as tasks/submissions change.
+export interface CollectorStats {
+  tasksAssigned: number;
+  tasksAccepted: number;
+  tasksDeclined: number;
+  tasksSubmitted: number;
+  tasksApproved: number;
+  approvalRate: number;
+}
+
+export function computeCollectorStats(
+  collectorName: string,
+  tasksList: Task[] = tasks,
+  submissionsList: Submission[] = submissions,
+): CollectorStats {
+  const assigned = tasksList.filter((t) => t.assignee === collectorName);
+  const tasksAssigned = assigned.length;
+  const tasksAccepted = assigned.filter((t) => ACCEPTED_OR_LATER_STATUSES.includes(t.status)).length;
+  const tasksDeclined = assigned.filter((t) => t.status === "declined").length;
+  const collectorSubmissions = submissionsList.filter((s) => s.collector === collectorName);
+  const tasksSubmitted = collectorSubmissions.length;
+  const decided = collectorSubmissions.filter((s) => s.status === "approved" || s.status === "rejected");
+  const tasksApproved = collectorSubmissions.filter((s) => s.status === "approved").length;
+  const approvalRate = decided.length ? Math.round((tasksApproved / decided.length) * 100) : 0;
+  return { tasksAssigned, tasksAccepted, tasksDeclined, tasksSubmitted, tasksApproved, approvalRate };
+}
+
+// A collector is "operationally active" if they accepted, submitted, or completed (had a
+// submission approved for) a task in the previous 14 days — distinct from their account
+// `status`, which an operator sets directly on the Collectors page.
+export function computeCollectorIsRecentlyActive(
+  collectorName: string,
+  tasksList: Task[] = tasks,
+  eventsList: TaskEvent[] = initialTaskEvents,
+  now: string = NOW,
+): boolean {
+  const cutoff = toTimestamp(now) - 14 * 86_400_000;
+  return eventsList.some((e) => {
+    if (toTimestamp(e.timestamp) < cutoff) return false;
+    const task = tasksList.find((t) => t.id === e.taskId);
+    if (!task || task.assignee !== collectorName) return false;
+    return e.message.includes("accepted the task") || e.message.includes("submitted proof of work") || e.message === "Submission approved";
+  });
+}
 
 // Natural-language event history, generated from the task + its linked submission so it always
 // matches the task's actual status rather than being hand-authored per task.
@@ -388,10 +439,25 @@ export function computeApprovedTasksCount(tasksList: Task[] = tasks): number {
   return tasksList.filter((t) => t.status === "approved").length;
 }
 
-// Active Collectors: currently able to take assignments.
-export const activeCollectorsCount = collectors.filter((c) => c.active).length;
-export const totalCollectorsCount = collectors.length;
-export const pendingRegistrationCount = collectors.filter((c) => c.registrationStatus === "pending").length;
+// Active Collectors: currently able to take assignments. Functions (not constants) so Overview
+// stays correct after Add/Edit/status-change actions on the live collector store.
+export function computeActiveCollectorsCount(collectorsList: Collector[] = collectors): number {
+  return collectorsList.filter((c) => c.status === "active").length;
+}
+export function computeTotalCollectorsCount(collectorsList: Collector[] = collectors): number {
+  return collectorsList.length;
+}
+export function computePendingRegistrationCount(collectorsList: Collector[] = collectors): number {
+  return collectorsList.filter((c) => c.status === "pending").length;
+}
+export function computeCollectorCounts(collectorsList: Collector[] = collectors) {
+  return {
+    total: collectorsList.length,
+    active: collectorsList.filter((c) => c.status === "active").length,
+    pending: collectorsList.filter((c) => c.status === "pending").length,
+    inactiveOrSuspended: collectorsList.filter((c) => c.status === "inactive" || c.status === "suspended").length,
+  };
+}
 
 // Completion Rate: of tasks that ever got assigned (i.e. excluding drafts and canceled), how many
 // have reached submitted, approved, or rejected — a sense of how far the pipeline is moving.
@@ -430,14 +496,18 @@ export function computeCollectorsWithPendingSubmissionsCount(submissionsList: Su
   return new Set(submissionsList.filter((s) => s.status === "pending").map((s) => s.collector)).size;
 }
 
-export function computeTopCollectors(tasksList: Task[] = tasks, collectorsList: Collector[] = collectors) {
-  const withLiveCompletions = collectorsList.map((c) => ({
+export function computeTopCollectors(
+  tasksList: Task[] = tasks,
+  collectorsList: Collector[] = collectors,
+  submissionsList: Submission[] = submissions,
+) {
+  const withLiveStats = collectorsList.map((c) => ({
     ...c,
-    tasksCompleted: tasksList.filter((t) => t.assignee === c.name && t.status === "approved").length,
+    ...computeCollectorStats(c.name, tasksList, submissionsList),
   }));
-  return withLiveCompletions
-    .filter((c) => c.active)
-    .sort((a, b) => b.tasksCompleted - a.tasksCompleted || toTimestamp(b.lastActiveAt) - toTimestamp(a.lastActiveAt))
+  return withLiveStats
+    .filter((c) => c.status === "active")
+    .sort((a, b) => b.tasksApproved - a.tasksApproved || toTimestamp(b.lastActiveAt) - toTimestamp(a.lastActiveAt))
     .slice(0, 3);
 }
 
@@ -558,4 +628,28 @@ export function computeCleanupLocations(tasksList: Task[] = tasks): CleanupLocat
 let taskIdCounter = Math.max(...tasks.map((t) => Number(t.id.split("-")[1]))) + 1;
 export function nextTaskId(): string {
   return `T-${taskIdCounter++}`;
+}
+
+let collectorIdCounter = Math.max(...collectors.map((c) => Number(c.id.split("-")[1]))) + 1;
+export function nextCollectorId(): string {
+  return `C-${collectorIdCounter++}`;
+}
+
+// E.164: a leading "+", then 8-15 digits total, no leading zero after the "+".
+const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+export function isValidE164Phone(phone: string): boolean {
+  return E164_PATTERN.test(phone.trim());
+}
+
+export function isPhoneNumberTaken(phone: string, collectorsList: Collector[] = collectors, excludeCollectorId?: string): boolean {
+  const normalized = phone.trim();
+  return collectorsList.some((c) => c.id !== excludeCollectorId && c.phone === normalized);
+}
+
+// Most recent tasks assigned to a collector, newest-first — used for the "Recent task history"
+// section of the collector detail drawer.
+export function computeCollectorTaskHistory(collectorName: string, tasksList: Task[] = tasks): Task[] {
+  return tasksList
+    .filter((t) => t.assignee === collectorName)
+    .sort((a, b) => toTimestamp(b.updatedAt) - toTimestamp(a.updatedAt));
 }
