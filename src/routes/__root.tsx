@@ -16,6 +16,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -118,13 +119,57 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AuthGate({ children }: { children: ReactNode }) {
+  const { session, loading } = useAuth();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const router = useRouter();
+  const isAuthRoute = pathname === "/login";
+
+  useEffect(() => {
+    if (!loading && !session && !isAuthRoute) {
+      router.navigate({ to: "/login" });
+    }
+    if (!loading && session && isAuthRoute) {
+      router.navigate({ to: "/" });
+    }
+  }, [session, loading, isAuthRoute, router]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          <span className="text-sm text-muted-foreground">Loading…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session && !isAuthRoute) return null;
+  if (session && isAuthRoute) return null;
+
+  return <>{children}</>;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RouteAwareLayout />
+      </AuthProvider>
+      <Toaster position="top-right" />
+    </QueryClientProvider>
+  );
+}
+
+function RouteAwareLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isAuthRoute = pathname === "/login";
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <AuthGate>
       {isAuthRoute ? (
         <Outlet />
       ) : (
@@ -140,7 +185,6 @@ function RootComponent() {
           </div>
         </SidebarProvider>
       )}
-      <Toaster position="top-right" />
-    </QueryClientProvider>
+    </AuthGate>
   );
 }

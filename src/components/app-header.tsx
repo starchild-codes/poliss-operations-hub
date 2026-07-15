@@ -1,4 +1,4 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, LogOut } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,35 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { useRouter } from "@tanstack/react-router";
+
+function initialsFromName(name: string): string {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 export function AppHeader() {
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+
+  const displayName = user?.user_metadata?.full_name ?? "User";
+  const initials = user?.user_metadata?.full_name
+    ? initialsFromName(user.user_metadata.full_name)
+    : user?.email
+      ? user.email.slice(0, 2).toUpperCase()
+      : "U";
+
+  async function handleSignOut() {
+    await signOut();
+    toast("Signed out");
+    router.navigate({ to: "/login" });
+  }
+
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-card px-3 sm:px-5">
       <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-primary-dark" />
@@ -50,28 +77,32 @@ export function AppHeader() {
             >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary-dark text-[11px] font-semibold text-white">
-                  AN
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden text-left sm:block">
                 <div className="text-xs font-semibold leading-tight text-foreground">
-                  Ananya Rao
+                  {displayName}
                 </div>
                 <div className="text-[11px] leading-tight text-muted-foreground">
-                  Operations Lead
+                  {email || "Operations"}
                 </div>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Signed in as Ananya
+              {email || "Signed in"}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Preferences</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={handleSignOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

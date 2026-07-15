@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import polisLogo from "@/assets/polis-logo.jpeg.asset.json";
 import { Recycle, MapPin, ClipboardCheck, Users } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -18,13 +20,23 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { signInWithGoogle, session } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (session) navigate({ to: "/" });
+  }, [session, navigate]);
+
+  async function handleGoogleSignIn(e?: React.FormEvent) {
+    e?.preventDefault();
     setLoading(true);
-    setTimeout(() => navigate({ to: "/" }), 400);
-  };
+    try {
+      await signInWithGoogle();
+    } catch {
+      toast.error("Sign-in failed", { description: "Could not start Google sign-in." });
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="grid min-h-screen w-full grid-cols-1 bg-background lg:grid-cols-[1.05fr_1fr]">
@@ -54,7 +66,7 @@ function LoginPage() {
             Access your municipal or partner operations workspace.
           </p>
 
-          <form onSubmit={submit} className="mt-8 space-y-4">
+          <form onSubmit={handleGoogleSignIn} className="mt-8 space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs font-medium text-foreground">
                 Work email
@@ -105,6 +117,8 @@ function LoginPage() {
               type="button"
               variant="outline"
               className="h-10 w-full border-border bg-card"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
             >
               Continue with organisation SSO
             </Button>
