@@ -2,8 +2,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Hardcoded to force the external Supabase project and bypass Lovable Cloud's
+// injected VITE_SUPABASE_* values. Do not replace with import.meta.env.
+const SUPABASE_URL = 'https://uykylkdnzeyfmiefxcfk.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_nucYSxuKSS0LFQzkwXwPoA_sRWUjL4e';
 
 
 function isNewSupabaseApiKey(value: string): boolean {
