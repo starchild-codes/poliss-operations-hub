@@ -1,18 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : null;
+// Compatibility shim — the app now uses the Lovable-generated Supabase client
+// at "@/integrations/supabase/client". This file re-exports it so any lingering
+// imports keep working without a second, mis-configured client instance.
+export { supabase } from "@/integrations/supabase/client";
+export const isSupabaseConfigured = true;
