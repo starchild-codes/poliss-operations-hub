@@ -29,6 +29,7 @@ export function AppHeader() {
   const router = useRouter();
 
   const displayName = user?.user_metadata?.full_name ?? "User";
+  const email = user?.email;
   const initials = user?.user_metadata?.full_name
     ? initialsFromName(user.user_metadata.full_name)
     : user?.email
@@ -38,7 +39,7 @@ export function AppHeader() {
   async function handleSignOut() {
     await signOut();
     toast("Signed out");
-    router.navigate({ to: "/login" });
+    router.navigate({ to: "/login", search: { mode: "signin" } });
   }
 
   return (

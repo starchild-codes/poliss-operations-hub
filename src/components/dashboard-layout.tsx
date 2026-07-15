@@ -30,7 +30,7 @@ export function DashboardLayout() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.navigate({ to: "/login" });
+    router.navigate({ to: "/login", search: { mode: "signin" } });
   };
 
   return (

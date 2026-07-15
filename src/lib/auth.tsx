@@ -8,7 +8,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-type AuthContextType = {
+export type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
@@ -23,6 +23,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+
+    if (!supabase) {
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
@@ -44,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await supabase?.auth.signOut();
     setSession(null);
   };
 
