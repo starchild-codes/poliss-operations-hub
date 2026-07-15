@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
+
 
 export default defineConfig({
   plugins: [
@@ -13,7 +15,9 @@ export default defineConfig({
     }),
     react(),
     tsconfigPaths(),
+    mcpPlugin(),
   ],
+
   server: {
     host: true,
     port: 5173,
