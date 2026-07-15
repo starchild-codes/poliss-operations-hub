@@ -17,7 +17,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && !session) {
-      router.navigate({ to: "/login" });
+      router.navigate({ to: "/login", search: { mode: "signin" } });
     }
   }, [loading, session, router]);
 

@@ -61,6 +61,7 @@ export function LandingNavbar() {
         <div className="hidden md:flex items-center gap-3">
           <Link
             to="/login"
+            search={{ mode: "signin" }}
             className="text-sm font-medium text-navy-700 hover:text-navy-950 px-4 py-2 transition-colors"
           >
             Log In
@@ -106,6 +107,7 @@ export function LandingNavbar() {
           <div className="pt-3 border-t border-navy-100 flex flex-col gap-2">
             <Link
               to="/login"
+              search={{ mode: "signin" }}
               className="text-sm font-medium text-navy-700 py-2"
             >
               Log In

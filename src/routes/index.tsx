@@ -36,6 +36,7 @@ function PrimaryButton({
   return (
     <Link
       to={to}
+      search={to === "/login" ? { mode: "signin" } : undefined}
       className="inline-flex items-center justify-center rounded-lg bg-institutional-700 px-6 py-3 text-sm font-semibold text-white hover:bg-institutional-800 transition-all duration-200 hover:shadow-lg hover:shadow-institutional-700/20"
     >
       {children}
