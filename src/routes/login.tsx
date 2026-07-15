@@ -5,7 +5,7 @@ import {
   useSearch,
 } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
@@ -37,6 +37,12 @@ function LoginPage() {
     setError(null);
 
     try {
+      if (!isSupabaseConfigured || !supabase) {
+        throw new Error(
+          "Authentication is not configured in this preview yet.",
+        );
+      }
+
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
