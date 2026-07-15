@@ -1,16 +1,21 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-interface AuthContextValue {
+type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-}
+};
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -25,13 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      // onAuthStateChange runs synchronously — wrap async work to avoid deadlock.
-      (async () => {
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
         setSession(newSession);
         setLoading(false);
-      })();
-    });
+      },
+    );
 
     return () => {
       mounted = false;
@@ -39,23 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function signInWithGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
-  }
-
-  async function signOut() {
+  const signOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
-  }
+  };
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signInWithGoogle, signOut }}
+      value={{ session, user: session?.user ?? null, loading, signOut }}
     >
       {children}
     </AuthContext.Provider>

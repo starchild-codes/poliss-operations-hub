@@ -1,385 +1,477 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageHeader, EmptyState } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { statusBarColor } from "@/components/status-badge";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Plus,
-  Download,
-  Clock,
-  ShieldCheck,
-  CheckCircle2,
-  Users,
-  UserCheck,
-  UserX,
-  UserPlus,
-  MapPin,
-  Send,
-  XCircle,
-} from "lucide-react";
-import {
-  computeOpenTasksCount,
-  computeAwaitingReviewCount,
-  computeApprovedTasksCount,
-  computeActiveCollectorsCount,
-  computeTotalCollectorsCount,
-  computeCompletionRate,
-  computeAcceptanceRate,
-  computeEstimatedWasteCollectedKg,
-  computeOverdueTasksCount,
-  computeCleanupActivity,
-  computeTaskStatusBreakdown,
-  computeTasksNeedingReview,
-  recentActivity,
-  computeCleanupLocations,
-  computePendingRegistrationCount,
-  computeCollectorsAssignedTodayCount,
-  computeCollectorsWithPendingSubmissionsCount,
-  computeTopCollectors,
-  formatFriendlyDateTime,
-  type ActivityItem,
-} from "@/lib/mock-data";
-import { useTaskStore } from "@/lib/task-store";
-import { useSubmissionStore } from "@/lib/submission-store";
-import { useCollectorStore } from "@/lib/collector-store";
+import { LandingNavbar } from "@/components/landing-navbar";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Overview — Polis Systems" },
-      { name: "description", content: "Monitor cleanup assignments, collector activity, and verified environmental impact." },
-    ],
-  }),
-  component: OverviewPage,
+  component: LandingPage,
 });
 
-function formatWaste(kg: number) {
-  return kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${kg} kg`;
+function LandingPage() {
+  return (
+    <div className="overflow-x-hidden">
+      <LandingNavbar />
+      <HeroSection />
+      <ProblemSection />
+      <WhatWeDoSection />
+      <HowItWorksSection />
+      <ResultsSection />
+      <MissionSection />
+      <ImpactSection />
+      <FinalCTASection />
+      <FooterSection />
+    </div>
+  );
 }
 
-const activityIcon: Record<ActivityItem["type"], React.ReactNode> = {
-  assigned: <UserPlus className="h-3.5 w-3.5" />,
-  accepted: <UserCheck className="h-3.5 w-3.5" />,
-  declined: <UserX className="h-3.5 w-3.5" />,
-  submitted: <Send className="h-3.5 w-3.5" />,
-  approved: <CheckCircle2 className="h-3.5 w-3.5" />,
-  rejected: <XCircle className="h-3.5 w-3.5" />,
-};
+/* ------------------------------------------------------------------ */
+/* Reusable bits                                                        */
+/* ------------------------------------------------------------------ */
 
-function OverviewPage() {
-  const { tasks } = useTaskStore();
-  const submissions = useSubmissionStore();
-  const collectors = useCollectorStore();
-  const openTasksCount = computeOpenTasksCount(tasks);
-  const awaitingReviewCount = computeAwaitingReviewCount(tasks);
-  const approvedTasksCount = computeApprovedTasksCount(tasks);
-  const completionRate = computeCompletionRate(tasks);
-  const acceptanceRate = computeAcceptanceRate(tasks);
-  const estimatedWasteCollectedKg = computeEstimatedWasteCollectedKg(submissions);
-  const overdueTasksCount = computeOverdueTasksCount(tasks);
-  const collectorsAssignedTodayCount = computeCollectorsAssignedTodayCount(tasks);
-  const taskStatusBreakdown = computeTaskStatusBreakdown(tasks);
-  const cleanupActivity = computeCleanupActivity(tasks, submissions);
-  const cleanupLocations = computeCleanupLocations(tasks);
-  const topCollectors = computeTopCollectors(tasks, collectors, submissions);
-  const tasksNeedingReview = computeTasksNeedingReview(submissions);
-  const collectorsWithPendingSubmissionsCount = computeCollectorsWithPendingSubmissionsCount(submissions);
-  const activeCollectorsCount = computeActiveCollectorsCount(collectors);
-  const totalCollectorsCount = computeTotalCollectorsCount(collectors);
-  const pendingRegistrationCount = computePendingRegistrationCount(collectors);
+function PrimaryButton({
+  to,
+  children,
+}: {
+  to: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex items-center justify-center rounded-lg bg-institutional-700 px-6 py-3 text-sm font-semibold text-white hover:bg-institutional-800 transition-all duration-200 hover:shadow-lg hover:shadow-institutional-700/20"
+    >
+      {children}
+    </Link>
+  );
+}
 
-  const maxDailyValue = Math.max(1, ...cleanupActivity.flatMap((d) => [d.assigned, d.submitted, d.approved]));
-  const totalStatusCount = Math.max(1, taskStatusBreakdown.reduce((s, x) => s + x.count, 0));
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-institutional-600 mb-4">
+      {children}
+    </p>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 1. Hero                                                              */
+/* ------------------------------------------------------------------ */
+
+function HeroSection() {
+  return (
+    <section className="relative min-h-screen flex items-center pt-16">
+      {/* Background image */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="/images/collector-hero.jpg"
+          alt="A waste collector sorting recyclable materials at a community site, representing dignity in essential field work"
+          className="h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-navy-950/85 via-navy-950/65 to-navy-950/30" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 mx-auto max-w-7xl px-4 md:px-6 lg:px-8 py-20 md:py-32">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-institutional-300 mb-6 animate-fade-in">
+            Polis Systems
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-white leading-[1.1] tracking-tight animate-fade-up">
+            Making the invisible visible.
+          </h1>
+          <p
+            className="mt-6 text-lg text-navy-100 leading-relaxed max-w-xl animate-fade-up"
+            style={{ animationDelay: "0.15s" }}
+          >
+            Turning overlooked cleanup work into visible, verifiable impact for
+            communities, field workers, and the institutions that support them.
+          </p>
+          <div
+            className="mt-10 flex flex-col sm:flex-row gap-4 animate-fade-up"
+            style={{ animationDelay: "0.3s" }}
+          >
+            <PrimaryButton to="/login">Log In</PrimaryButton>
+            <Link
+              to="/login"
+              search={{ mode: "signup" }}
+              className="inline-flex items-center justify-center rounded-lg border border-white/30 bg-white/10 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-white hover:bg-white/20 transition-all duration-200"
+            >
+              Sign Up
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Scroll indicator */}
+      <div
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 hidden md:block animate-fade-in"
+        style={{ animationDelay: "0.6s" }}
+      >
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-xs text-white/50 uppercase tracking-widest">
+            Scroll
+          </span>
+          <div className="w-px h-12 bg-gradient-to-b from-white/40 to-transparent" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 2. Problem                                                           */
+/* ------------------------------------------------------------------ */
+
+function ProblemSection() {
+  return (
+    <section id="about" className="py-20 md:py-32 bg-white">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Text */}
+          <div className="order-2 lg:order-1">
+            <SectionLabel>The Problem</SectionLabel>
+            <h2 className="font-display text-3xl sm:text-4xl text-navy-950 leading-tight tracking-tight">
+              Essential work should not disappear into scattered messages and
+              unseen effort.
+            </h2>
+            <p className="mt-6 text-lg text-navy-600 leading-relaxed">
+              Cleanup work is often coordinated through calls, chats, and
+              informal networks. The work happens, but the evidence,
+              recognition, and operational visibility are often lost.
+            </p>
+          </div>
+
+          {/* Image */}
+          <div className="order-1 lg:order-2">
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src="/images/collector-problem.jpg"
+                alt="Hands sorting through mixed waste materials, illustrating the informal and often undocumented nature of cleanup work"
+                className="w-full h-[400px] lg:h-[520px] object-cover object-center"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 3. What Polis Systems Does                                           */
+/* ------------------------------------------------------------------ */
+
+function WhatWeDoSection() {
+  const pillars = [
+    {
+      number: "01",
+      title: "Coordinate",
+      description:
+        "Organize cleanup tasks, responsibilities, and progress in one clear system.",
+    },
+    {
+      number: "02",
+      title: "Verify",
+      description:
+        "Turn photos, timestamps, locations, and task records into credible proof of work.",
+    },
+    {
+      number: "03",
+      title: "Recognize",
+      description:
+        "Create clearer visibility for the people and communities doing work that too often goes unseen.",
+    },
+  ];
 
   return (
-    <>
-      <PageHeader
-        title="Operations Overview"
-        description="Monitor cleanup assignments, collector activity, and verified environmental impact"
-        actions={
-          <>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Download className="h-4 w-4" /> Export Report
-            </Button>
-            <Button asChild size="sm" className="gap-1.5">
-              <Link to="/tasks">
-                <Plus className="h-4 w-4" /> Create Task
-              </Link>
-            </Button>
-          </>
-        }
-      />
+    <section className="py-20 md:py-32 bg-navy-50">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="max-w-3xl mb-16">
+          <SectionLabel>What We Do</SectionLabel>
+          <h2 className="font-display text-3xl sm:text-4xl text-navy-950 leading-tight tracking-tight">
+            Coordinate the work. Verify the outcome. Make the impact visible.
+          </h2>
+        </div>
 
-      <div className="space-y-4 p-5">
-        {/* Primary metrics */}
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi label="Open Tasks" value={openTasksCount} icon={<Clock className="h-4 w-4" />} />
-          <Kpi label="Awaiting Review" value={awaitingReviewCount} icon={<ShieldCheck className="h-4 w-4" />} tone="warning" />
-          <Kpi label="Approved Tasks" value={approvedTasksCount} icon={<CheckCircle2 className="h-4 w-4" />} tone="primary" />
-          <Kpi label="Active Collectors" value={activeCollectorsCount} icon={<Users className="h-4 w-4" />} delta={`of ${totalCollectorsCount} total`} />
-        </section>
-
-        {/* Secondary metrics */}
-        <section className="grid grid-cols-2 gap-3 rounded-md border border-border bg-card p-3.5 sm:grid-cols-4">
-          <SecondaryStat label="Completion Rate" value={`${completionRate}%`} hint="Tasks completed once assigned" />
-          <SecondaryStat label="Acceptance Rate" value={`${acceptanceRate}%`} hint="Collectors who accept assigned work" />
-          <SecondaryStat label="Est. Waste Collected" value={formatWaste(estimatedWasteCollectedKg)} hint="From approved cleanups only" />
-          <SecondaryStat label="Overdue Tasks" value={overdueTasksCount} hint="Active tasks past their due date" tone={overdueTasksCount > 0 ? "warning" : "default"} />
-        </section>
-
-        {/* Cleanup activity + status breakdown */}
-        <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          <div className="lg:col-span-2 rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-2.5">
-              <h2 className="text-sm font-semibold text-foreground">Cleanup Activity</h2>
-              <p className="text-xs text-muted-foreground">Assigned, submitted, and approved over the last 7 days</p>
+        <div className="grid md:grid-cols-3 gap-px bg-navy-100 rounded-2xl overflow-hidden border border-navy-100">
+          {pillars.map((pillar) => (
+            <div
+              key={pillar.number}
+              className="bg-white p-8 lg:p-10 flex flex-col gap-4 hover:bg-navy-50/50 transition-colors duration-300"
+            >
+              <span className="font-display text-2xl text-institutional-400 font-medium">
+                {pillar.number}
+              </span>
+              <h3 className="font-display text-xl text-navy-950 font-medium">
+                {pillar.title}
+              </h3>
+              <p className="text-navy-600 leading-relaxed text-[15px]">
+                {pillar.description}
+              </p>
             </div>
-            <div className="px-4 pt-3">
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <Legend swatch="bg-primary-dark" label="Assigned" />
-                <Legend swatch="bg-indigo" label="Submitted" />
-                <Legend swatch="bg-teal" label="Approved" />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 4. How It Works                                                      */
+/* ------------------------------------------------------------------ */
+
+function HowItWorksSection() {
+  const steps = [
+    "Create a task",
+    "Assign a collector",
+    "Coordinate through WhatsApp",
+    "Receive proof",
+    "Review the work",
+    "Measure the impact",
+  ];
+
+  return (
+    <section id="how-it-works" className="py-20 md:py-32 bg-white">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="max-w-3xl mb-16">
+          <SectionLabel>How It Works</SectionLabel>
+          <h2 className="font-display text-3xl sm:text-4xl text-navy-950 leading-tight tracking-tight mb-6">
+            A simple workflow from task to verified impact.
+          </h2>
+          <p className="text-lg text-navy-600 leading-relaxed">
+            Polis Systems combines a simple operations dashboard with a
+            WhatsApp-first field workflow, reducing digital friction while
+            improving accountability.
+          </p>
+        </div>
+
+        {/* Steps */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 lg:gap-2">
+          {steps.map((step, i) => (
+            <div
+              key={step}
+              className="relative flex flex-col items-center text-center"
+            >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-institutional-50 border border-institutional-100 text-institutional-700 font-semibold text-sm mb-3">
+                {i + 1}
               </div>
+              <p className="text-sm font-medium text-navy-800 leading-snug max-w-[140px]">
+                {step}
+              </p>
+              {i < steps.length - 1 && (
+                <div className="hidden lg:block absolute top-6 left-[55%] w-full h-px bg-navy-100" />
+              )}
             </div>
-            <div className="flex gap-3 px-4 pb-3 pt-3 h-32">
-              {cleanupActivity.map((d) => (
-                <div key={d.day} className="flex flex-1 flex-col items-center gap-1.5">
-                  <div className="flex w-full flex-1 items-end justify-center gap-0.5">
-                    <div className="w-2 rounded-t bg-primary-dark" style={{ height: `${(d.assigned / maxDailyValue) * 100}%` }} title={`${d.assigned} assigned`} />
-                    <div className="w-2 rounded-t bg-indigo" style={{ height: `${(d.submitted / maxDailyValue) * 100}%` }} title={`${d.submitted} submitted`} />
-                    <div className="w-2 rounded-t bg-teal" style={{ height: `${(d.approved / maxDailyValue) * 100}%` }} title={`${d.approved} approved`} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 5. Results / Visible Change                                          */
+/* ------------------------------------------------------------------ */
+
+function ResultsSection() {
+  return (
+    <section className="py-20 md:py-32 bg-navy-950">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-institutional-300 mb-4">
+            Results
+          </p>
+          <h2 className="font-display text-3xl sm:text-4xl text-white leading-tight tracking-tight">
+            Visible work. Verifiable change.
+          </h2>
+          <p className="mt-6 text-lg text-navy-200 leading-relaxed">
+            Polis Systems helps turn field activity into a clear record of what
+            was done, where it happened, and what changed.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
+          <div className="overflow-hidden rounded-2xl bg-navy-900">
+            <img
+              src="/images/before-after-1.jpg"
+              alt="Before and after comparison showing a waste site before cleanup work was carried out"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+          <div className="overflow-hidden rounded-2xl bg-navy-900">
+            <img
+              src="/images/before-after-2.jpg"
+              alt="Before and after comparison showing the same site after cleanup work was completed"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. Mission                                                           */
+/* ------------------------------------------------------------------ */
+
+function MissionSection() {
+  return (
+    <section className="py-20 md:py-32 bg-white">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 items-center">
+          {/* Image — wider column */}
+          <div className="lg:col-span-3">
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src="/images/collector-mission.jpg"
+                alt="A field worker engaged in community cleanup work, representing dignity and inclusion in environmental labour"
+                className="w-full h-[400px] lg:h-[560px] object-cover object-center"
+              />
+            </div>
+          </div>
+
+          {/* Text — narrower column */}
+          <div className="lg:col-span-2">
+            <SectionLabel>Our Mission</SectionLabel>
+            <h2 className="font-display text-3xl sm:text-4xl text-navy-950 leading-tight tracking-tight">
+              Better systems should work for the people already doing the work.
+            </h2>
+            <p className="mt-6 text-lg text-navy-600 leading-relaxed">
+              Polis Systems is designed around the realities of field work. It
+              helps organizations coordinate more effectively without forcing
+              workers into complicated software, while creating clearer records
+              of contribution, progress, and impact.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 7. Impact                                                            */
+/* ------------------------------------------------------------------ */
+
+function ImpactSection() {
+  const impacts = [
+    {
+      title: "More visibility",
+      description: "for field work and community contribution",
+    },
+    {
+      title: "Better coordination",
+      description: "across operators, organizations, and local teams",
+    },
+    {
+      title: "Stronger evidence",
+      description: "for decisions, reporting, and future investment",
+    },
+  ];
+
+  return (
+    <section id="impact" className="py-20 md:py-32 bg-institutional-50">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Image */}
+          <div className="order-2 lg:order-1">
+            <div className="relative overflow-hidden rounded-2xl shadow-xl shadow-navy-900/10">
+              <img
+                src="/images/collector-impact.jpg"
+                alt="Community members participating in a collective environmental cleanup effort, showing the power of coordinated field work"
+                className="w-full h-[400px] lg:h-[520px] object-cover object-center"
+              />
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="order-1 lg:order-2">
+            <SectionLabel>Impact</SectionLabel>
+            <h2 className="font-display text-3xl sm:text-4xl text-navy-950 leading-tight tracking-tight mb-10">
+              When work becomes visible, recognition and better decisions can
+              follow.
+            </h2>
+
+            <div className="space-y-8">
+              {impacts.map((item, i) => (
+                <div key={i} className="flex gap-5">
+                  <div className="shrink-0 mt-1">
+                    <div className="w-8 h-8 rounded-full bg-institutional-700 text-white flex items-center justify-center text-sm font-semibold">
+                      {i + 1}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground">{d.label}</div>
+                  <div>
+                    <h3 className="font-display text-lg text-navy-950 font-medium">
+                      {item.title}
+                    </h3>
+                    <p className="text-navy-600 mt-1 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-2.5">
-              <h2 className="text-sm font-semibold text-foreground">Task Status Breakdown</h2>
-              <p className="text-xs text-muted-foreground">{totalStatusCount} tasks in the pilot</p>
-            </div>
-            <div className="px-4 pt-3">
-              <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
-                {taskStatusBreakdown.filter((s) => s.count > 0).map((s) => (
-                  <div
-                    key={s.status}
-                    className={statusBarColor[s.status]}
-                    style={{ width: `${(s.count / totalStatusCount) * 100}%` }}
-                    title={`${s.label}: ${s.count}`}
-                  />
-                ))}
-              </div>
-            </div>
-            <ul className="grid grid-cols-1 gap-1 p-4 pt-2.5 sm:grid-cols-2">
-              {taskStatusBreakdown.map((s) => (
-                <li key={s.status} className="flex items-center gap-1.5 text-xs">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${statusBarColor[s.status]}`} />
-                  <span className="text-muted-foreground">{s.label}</span>
-                  <span className="ml-auto font-medium tabular-nums text-foreground">{s.count}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* Tasks needing review */}
-        <section className="rounded-md border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Tasks Needing Review</h2>
-              <p className="text-xs text-muted-foreground">Submitted proof awaiting your decision</p>
-            </div>
-            <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-              <Link to="/review" search={{ taskId: undefined }}>View all</Link>
-            </Button>
-          </div>
-          {tasksNeedingReview.length === 0 ? (
-            <div className="p-4">
-              <EmptyState
-                icon={<ShieldCheck className="h-5 w-5" />}
-                title="No submissions awaiting review"
-                description="New proof-of-work will appear here when collectors submit via WhatsApp."
-              />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Task</TableHead>
-                  <TableHead>Collector &amp; zone</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Waste</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tasksNeedingReview.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="max-w-[220px] truncate font-medium text-foreground">{s.taskTitle}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div>{s.collector}</div>
-                      <div className="inline-flex items-center gap-0.5 text-xs"><MapPin className="h-3 w-3" />{s.zone}</div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatFriendlyDateTime(s.submittedAt)}</TableCell>
-                    <TableCell className="text-muted-foreground">{s.wasteType} · {s.quantityKg} kg</TableCell>
-                    <TableCell className="capitalize text-foreground">{s.priority}</TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to="/review" search={{ taskId: s.taskId }}>Review</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </section>
-
-        {/* Recent activity + cleanup locations */}
-        <section className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-stretch">
-          <div className="flex flex-col rounded-md border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-              <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
-            </div>
-            {recentActivity.length === 0 ? (
-              <div className="p-4">
-                <EmptyState title="No recent activity" description="Activity will appear here as tasks move through the pipeline." />
-              </div>
-            ) : (
-              <ul className="flex-1 divide-y divide-border">
-                {recentActivity.map((a) => (
-                  <li key={a.id} className="flex items-start gap-2.5 px-4 py-2.5">
-                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                      {activityIcon[a.type]}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm text-foreground">{a.message}</p>
-                      <p className="text-xs text-muted-foreground">{formatFriendlyDateTime(a.timestamp)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="flex flex-col lg:col-span-2 rounded-md border border-border bg-card">
-            <div className="border-b border-border px-4 py-2.5">
-              <h2 className="text-sm font-semibold text-foreground">Cleanup Locations</h2>
-              <p className="text-xs text-muted-foreground">Pilot zones · open vs. completed</p>
-            </div>
-            <ul className="flex-1 divide-y divide-border">
-              {cleanupLocations.map((z) => (
-                <li key={z.zone} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                  <span className="w-20 shrink-0 text-sm font-medium text-foreground">{z.zone}</span>
-                  <span className="text-xs text-muted-foreground">{z.openTasks} open</span>
-                  <span className="text-xs text-muted-foreground">{z.completedTasks} completed</span>
-                  <span className="text-xs text-muted-foreground">Hotspot: {z.hotspotType}</span>
-                  <span className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
-                    {z.highestPriorityTask ? `Top priority: ${z.highestPriorityTask}` : "No open tasks"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* Collector activity */}
-        <section className="rounded-md border border-border bg-card">
-          <div className="border-b border-border px-4 py-2.5">
-            <h2 className="text-sm font-semibold text-foreground">Collector Activity</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-3 border-b border-border p-3.5 sm:grid-cols-4">
-            <SecondaryStat label="Active Collectors" value={activeCollectorsCount} />
-            <SecondaryStat label="Pending Registration" value={pendingRegistrationCount} />
-            <SecondaryStat label="Assigned Today" value={collectorsAssignedTodayCount} />
-            <SecondaryStat label="Collectors With Pending Submissions" value={collectorsWithPendingSubmissionsCount} />
-          </div>
-          <ul className="divide-y divide-border">
-            {topCollectors.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                <span className="w-36 shrink-0 truncate text-sm font-medium text-foreground">{c.name}</span>
-                <span className="w-16 shrink-0 text-xs text-muted-foreground">{c.zone}</span>
-                <span className="text-xs text-muted-foreground">{c.tasksApproved} completed</span>
-                <span className="text-xs text-muted-foreground">{c.approvalRate}% approval</span>
-                <span className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
-                  Last active {formatFriendlyDateTime(c.lastActiveAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        </div>
       </div>
-    </>
+    </section>
   );
 }
 
-function Legend({ swatch, label }: { swatch: string; label: string }) {
+/* ------------------------------------------------------------------ */
+/* 8. Final CTA                                                         */
+/* ------------------------------------------------------------------ */
+
+function FinalCTASection() {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`h-2 w-2 rounded-full ${swatch}`} />
-      {label}
-    </span>
+    <section className="py-24 md:py-36 bg-navy-950 relative overflow-hidden">
+      {/* Subtle gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-navy-950 to-institutional-950 opacity-50" />
+
+      <div className="relative z-10 mx-auto max-w-4xl px-4 md:px-6 lg:px-8 text-center">
+        <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl text-white leading-tight tracking-tight">
+          Make the invisible visible.
+        </h2>
+        <p className="mt-6 text-lg text-navy-200 leading-relaxed max-w-xl mx-auto">
+          Build clearer operations. Recognize the work. Measure what changes.
+        </p>
+        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+          <PrimaryButton to="/login">Log In</PrimaryButton>
+          <Link
+            to="/login"
+            search={{ mode: "signup" }}
+            className="inline-flex items-center justify-center rounded-lg border border-white/30 bg-white/10 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-white hover:bg-white/20 transition-all duration-200"
+          >
+            Sign Up
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
-function Kpi({
-  label,
-  value,
-  icon,
-  delta,
-  tone = "default",
-}: {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-  delta?: string;
-  tone?: "default" | "primary" | "warning";
-}) {
-  const toneClass =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "warning"
-      ? "text-warning"
-      : "text-muted-foreground";
-  return (
-    <div className="rounded-md border border-border bg-card p-3.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <span className={toneClass}>{icon}</span>
-      </div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
-        {value}
-      </div>
-      {delta && <div className={`mt-0.5 text-xs ${toneClass}`}>{delta}</div>}
-    </div>
-  );
-}
+/* ------------------------------------------------------------------ */
+/* Footer                                                               */
+/* ------------------------------------------------------------------ */
 
-function SecondaryStat({
-  label,
-  value,
-  hint,
-  tone = "default",
-}: {
-  label: string;
-  value: number | string;
-  hint?: string;
-  tone?: "default" | "warning";
-}) {
+function FooterSection() {
   return (
-    <div>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={`mt-1 text-lg font-semibold tracking-tight ${tone === "warning" ? "text-warning" : "text-foreground"}`}>
-        {value}
+    <footer className="bg-navy-950 border-t border-navy-800 py-12">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-institutional-700 text-white font-bold text-xs">
+              P
+            </div>
+            <span className="font-semibold text-white text-base tracking-tight">
+              Polis Systems
+            </span>
+          </div>
+          <p className="text-sm text-navy-400 text-center md:text-right">
+            Making the invisible visible — for communities, field workers, and
+            institutions.
+          </p>
+        </div>
       </div>
-      {hint && <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
-    </div>
+    </footer>
   );
 }
