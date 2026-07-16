@@ -16,7 +16,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetBody, SheetFooter,
 } from "@/components/ui/sheet";
-import { Search, X, ClipboardCheck, Clock3, CircleCheck as CheckCircle2, Circle as XCircle, MapPin, User, Phone, CircleAlert as AlertCircle, Image as ImageIcon, Weight, MessageSquare } from "lucide-react";
+import {
+  Search, X, ClipboardCheck, Clock3, CheckCircle2, XCircle, MapPin, User, Phone,
+  AlertCircle, ImageIcon, Weight, MessageSquare,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   fetchSubmissions, approveSubmission, rejectSubmission,

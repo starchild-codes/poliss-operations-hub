@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader, EmptyState } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CircleAlert as AlertCircle, Clock3, ClipboardCheck, CircleCheck as CheckCircle2 } from "lucide-react";
+import { AlertCircle, Clock3, ClipboardCheck, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 
