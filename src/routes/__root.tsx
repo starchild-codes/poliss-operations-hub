@@ -6,6 +6,10 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { useAuth, type AuthContextType } from "@/lib/auth";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from "@/components/app-header";
+import { Toaster } from "@/components/ui/sonner";
 
 type RouterContext = {
   auth: AuthContextType;
@@ -53,7 +57,7 @@ function AccessPendingScreen({
   );
 }
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
+function ProtectedShell({ children }: { children: ReactNode }) {
   const { loading, session, profile, profileLoading, isAuthorized, signOut, user } = useAuth();
   const router = useRouter();
 
@@ -87,7 +91,17 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background">
+          <AppHeader />
+          <main className="flex-1">{children}</main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  );
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -108,10 +122,11 @@ function RootComponent() {
       {isPublicRoute ? (
         <Outlet />
       ) : (
-        <ProtectedRoute>
+        <ProtectedShell>
           <Outlet />
-        </ProtectedRoute>
+        </ProtectedShell>
       )}
+      <Toaster position="top-right" />
     </div>
   );
 }
