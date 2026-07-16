@@ -2,6 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --radius: 0.5rem;
+
+  --background: #f3f8fc;
+  --foreground: #172b3a;
+  --card: #ffffff;
+  --card-foreground: #172b3a;
+  --popover: #ffffff;
+  --popover-foreground: #172b3a;
+  --surface: #eaf4fa;
+
+  --primary: #1676b8;
+  --primary-foreground: #ffffff;
+  --primary-dark: #12304a;
+  --primary-soft: #eaf4fa;
+
+  --secondary: #eaf4fa;
+  --secondary-foreground: #12304a;
+
+  --muted: #eaf4fa;
+  --muted-foreground: #607787;
+
+  --accent: #eaf4fa;
+  --accent-foreground: #12304a;
+
+  --success: #2e8b75;
+  --success-foreground: #ffffff;
+
+  --warning: #d89b3c;
+  --warning-foreground: #ffffff;
+
+  --destructive: #c95454;
+  --destructive-foreground: #ffffff;
+
+  --info: #4ba3d3;
+  --info-foreground: #0b2033;
+
+  --teal: #0e8aa5;
+  --teal-foreground: #ffffff;
+
+  --indigo: #4c5fbf;
+  --indigo-foreground: #ffffff;
+
+  --border: #d8e5ed;
+  --input: #d8e5ed;
+  --ring: #1676b8;
+
+  --sidebar: #12304a;
+  --sidebar-foreground: #cfe0ec;
+  --sidebar-primary: #1676b8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b3d5c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1b3d5c;
+  --sidebar-ring: #4ba3d3;
+
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
+}
+
 @layer base {
   * {
     @apply border-navy-100;
