@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback } from "react";
+import { useSyncExternalStore } from "react";
 import {
   fetchTasks,
   insertTask,
@@ -250,11 +250,7 @@ export function useTaskStore(): {
   error: string | null;
 } {
   taskStoreActions.init();
-  const get = useCallback(
-    () => ({ tasks: state.tasks, events: state.events, loading: state.loading, error: state.error }),
-    [],
-  );
-  return useSyncExternalStore(subscribe, get, get);
+  return useSyncExternalStore(subscribe, () => state, () => state);
 }
 
 export function useTaskEvents(taskId: string): TaskEvent[] {
