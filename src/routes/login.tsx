@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
@@ -32,7 +31,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (session) {
-      navigate({ to: "/tasks" });
+      navigate({ to: "/overview" });
     }
   }, [session, navigate]);
 
@@ -59,7 +58,7 @@ function LoginPage() {
           password,
         });
         if (error) throw error;
-        navigate({ to: "/tasks" });
+        navigate({ to: "/overview" });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -73,22 +72,14 @@ function LoginPage() {
     setError(null);
     setNotice(null);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
       });
-      if (result.error) {
-        setError(
-          result.error instanceof Error
-            ? result.error.message
-            : "Google sign-in failed",
-        );
-        return;
-      }
-      if (result.redirected) return;
-      navigate({ to: "/tasks" });
+      if (error) throw error;
+      // Supabase handles the redirect — no further action needed here.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
       setGoogleLoading(false);
     }
   };

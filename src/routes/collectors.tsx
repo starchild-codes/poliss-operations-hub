@@ -22,21 +22,22 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Plus, Search, X, ListFilter, MoreHorizontal, Users, UserCheck, UserPlus, UserX, Phone, MapPin, Calendar,
-} from "lucide-react";
+import { Plus, Search, X, ListFilter, MoveHorizontal as MoreHorizontal, Users, UserCheck, UserPlus, UserX, Phone, MapPin, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import {
-  ZONES, COLLECTOR_STATUSES, COLLECTOR_TYPES, PREFERRED_LANGUAGES,
+  COLLECTOR_STATUSES, COLLECTOR_TYPES, PREFERRED_LANGUAGES,
   computeCollectorCounts, computeCollectorStats, computeCollectorIsRecentlyActive,
   computeCollectorTaskHistory, formatFriendlyDate, formatFriendlyDateTime,
   isValidE164Phone, isPhoneNumberTaken,
   type Collector, type CollectorStatus, type CollectorType, type Zone,
 } from "@/lib/mock-data";
-import { useCollectorStore, collectorStoreActions, type NewCollectorInput } from "@/lib/collector-store";
+import { useCollectorStore, useCollectorStoreState, collectorStoreActions, type NewCollectorInput } from "@/lib/collector-store";
 import { useTaskStore } from "@/lib/task-store";
+import { useZones } from "@/lib/zone-store";
 import { useSubmissionStore } from "@/lib/submission-store";
 import { StatusBadge } from "@/components/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CircleAlert as AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/collectors")({
   head: () => ({
@@ -81,6 +82,9 @@ function CollectorStatusBadge({ status }: { status: CollectorStatus }) {
 
 function CollectorsPage() {
   const collectors = useCollectorStore();
+  const { loading, error } = useCollectorStoreState();
+  const zones = useZones();
+  const zoneNames = zones.length > 0 ? zones.map((z) => z.name) : Array.from(new Set(collectors.map((c) => c.zone)));
   const { tasks } = useTaskStore();
   const submissions = useSubmissionStore();
 
@@ -95,6 +99,7 @@ function CollectorsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const [confirm, setConfirm] = useState<{ id: string; name: string; action: "deactivate" | "suspend" } | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const counts = useMemo(() => computeCollectorCounts(collectors), [collectors]);
 
@@ -123,31 +128,54 @@ function CollectorsPage() {
     setDetailOpen(true);
   }
 
-  function handleCreate(input: NewCollectorInput) {
-    const c = collectorStoreActions.createCollector(input, nowIso());
-    toast.success("Collector added", { description: `${c.name} is now ${STATUS_LABEL[c.status].toLowerCase()}.` });
+  async function handleCreate(input: NewCollectorInput) {
+    setSaving(true);
+    try {
+      const c = await collectorStoreActions.createCollector(input);
+      toast.success("Collector added", { description: `${c.name} is now ${STATUS_LABEL[c.status].toLowerCase()}.` });
+    } catch (err) {
+      toast.error("Failed to add collector", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleEdit(id: string, patch: Partial<NewCollectorInput>) {
-    collectorStoreActions.editCollector(id, patch);
-    toast.success("Collector updated");
+  async function handleEdit(id: string, patch: Partial<NewCollectorInput>) {
+    setSaving(true);
+    try {
+      await collectorStoreActions.editCollector(id, patch);
+      toast.success("Collector updated");
+    } catch (err) {
+      toast.error("Failed to update collector", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleStatusChange(id: string, next: CollectorStatus, name: string) {
+  async function handleStatusChange(id: string, next: CollectorStatus, name: string) {
     if (next === "inactive" || next === "suspended") {
       setConfirm({ id, name, action: next === "inactive" ? "deactivate" : "suspend" });
       return;
     }
-    collectorStoreActions.setStatus(id, next);
-    toast.success(`${name} — ${STATUS_LABEL[next]}`);
+    try {
+      await collectorStoreActions.setStatus(id, next);
+      toast.success(`${name} — ${STATUS_LABEL[next]}`);
+    } catch (err) {
+      toast.error("Failed to update status", { description: err instanceof Error ? err.message : undefined });
+    }
   }
 
-  function confirmStatusChange() {
+  async function confirmStatusChange() {
     if (!confirm) return;
     const next: CollectorStatus = confirm.action === "deactivate" ? "inactive" : "suspended";
-    collectorStoreActions.setStatus(confirm.id, next);
-    toast.success(`${confirm.name} — ${STATUS_LABEL[next]}`);
-    setConfirm(null);
+    try {
+      await collectorStoreActions.setStatus(confirm.id, next);
+      toast.success(`${confirm.name} — ${STATUS_LABEL[next]}`);
+    } catch (err) {
+      toast.error("Failed to update status", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setConfirm(null);
+    }
   }
 
   const liveSelected = selected ? collectors.find((c) => c.id === selected.id) ?? selected : null;
@@ -195,7 +223,7 @@ function CollectorsPage() {
             <SelectTrigger className="h-9 w-32"><SelectValue placeholder="Zone" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All zones</SelectItem>
-              {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+              {zoneNames.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={type} onValueChange={(v) => setType(v as CollectorType | "all")}>
@@ -216,7 +244,28 @@ function CollectorsPage() {
         </div>
 
         {/* Table */}
-        {collectors.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3 rounded-md border border-border bg-card p-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center rounded-md border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+            <h3 className="mt-2 text-sm font-semibold text-destructive">Failed to load collectors</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => collectorStoreActions.refresh()}>Retry</Button>
+          </div>
+        ) : collectors.length === 0 ? (
           <EmptyState
             icon={<Users className="h-5 w-5" />}
             title="No collectors added"
@@ -299,6 +348,7 @@ function CollectorsPage() {
         onOpenChange={(o) => { setFormOpen(o); if (!o) setEditing(null); }}
         editing={editing}
         collectors={collectors}
+        zoneNames={zoneNames}
         onCreate={handleCreate}
         onEdit={handleEdit}
       />
@@ -406,12 +456,13 @@ const emptyForm: FormValues = {
 type FormErrors = Partial<Record<keyof FormValues, string>>;
 
 function CollectorFormSheet({
-  open, onOpenChange, editing, collectors, onCreate, onEdit,
+  open, onOpenChange, editing, collectors, zoneNames, onCreate, onEdit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: Collector | null;
   collectors: Collector[];
+  zoneNames: string[];
   onCreate: (input: NewCollectorInput) => void;
   onEdit: (id: string, patch: Partial<NewCollectorInput>) => void;
 }) {
@@ -497,7 +548,7 @@ function CollectorFormSheet({
                 <Select value={values.zone} onValueChange={(v) => set("zone", v as Zone)}>
                   <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
                   <SelectContent>
-                    {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                    {zoneNames.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>

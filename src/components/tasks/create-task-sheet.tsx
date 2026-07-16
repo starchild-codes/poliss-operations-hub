@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  HOTSPOT_TYPES, PRIORITIES, ZONES,
+  HOTSPOT_TYPES, PRIORITIES,
   type Task, type HotspotType, type Priority, type Zone, type WasteType,
 } from "@/lib/mock-data";
 import type { NewTaskInput } from "@/lib/task-store";
@@ -99,6 +99,7 @@ export function CreateTaskSheet({
   onOpenChange,
   editingTask,
   collectorOptions,
+  zoneNames,
   onCreate,
   onEdit,
 }: {
@@ -106,6 +107,7 @@ export function CreateTaskSheet({
   onOpenChange: (open: boolean) => void;
   editingTask?: Task | null;
   collectorOptions: string[];
+  zoneNames: string[];
   onCreate: (input: NewTaskInput) => void;
   onEdit: (taskId: string, patch: Partial<NewTaskInput>) => void;
 }) {
@@ -229,7 +231,7 @@ export function CreateTaskSheet({
                 <Select value={values.zone} onValueChange={(v) => set("zone", v as Zone)}>
                   <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
                   <SelectContent>
-                    {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                    {zoneNames.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>

@@ -13,6 +13,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CollectorsRouteImport } from './routes/collectors'
@@ -40,6 +41,11 @@ const ReviewRoute = ReviewRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OverviewRoute = OverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/collectors': typeof CollectorsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/collectors': typeof CollectorsRoute
   '/login': typeof LoginRoute
+  '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/collectors': typeof CollectorsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/collectors'
     | '/dashboard'
     | '/login'
+    | '/overview'
     | '/reports'
     | '/review'
     | '/settings'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
     | '/'
     | '/collectors'
     | '/login'
+    | '/overview'
     | '/reports'
     | '/review'
     | '/settings'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '/collectors'
     | '/dashboard'
     | '/login'
+    | '/overview'
     | '/reports'
     | '/review'
     | '/settings'
@@ -174,6 +186,7 @@ export interface RootRouteChildren {
   CollectorsRoute: typeof CollectorsRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  OverviewRoute: typeof OverviewRoute
   ReportsRoute: typeof ReportsRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
@@ -208,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/overview': {
+      id: '/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof OverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -292,6 +312,7 @@ const rootRouteChildren: RootRouteChildren = {
   CollectorsRoute: CollectorsRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  OverviewRoute: OverviewRoute,
   ReportsRoute: ReportsRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,

@@ -1,5 +1,5 @@
-import { Bell, Search, LogOut } from "lucide-react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Bell, Search, LogOut, Menu } from "lucide-react";
+import { useSidebar } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ function initialsFromName(name: string): string {
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const router = useRouter();
+  const { toggleSidebar } = useSidebar();
 
   const displayName = user?.user_metadata?.full_name ?? "User";
   const email = user?.email;
@@ -44,7 +45,13 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-card px-3 sm:px-5">
-      <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-primary-dark" />
+      <button
+        onClick={() => toggleSidebar()}
+        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        aria-label="Toggle sidebar"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
 
       <div className="relative ml-1 hidden max-w-md flex-1 sm:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

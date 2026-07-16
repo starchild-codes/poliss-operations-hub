@@ -1,19 +1,35 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  collectors as initialCollectors,
-  nextCollectorId,
-  type Collector,
-  type CollectorStatus,
-  type CollectorType,
-  type Zone,
+  fetchCollectors,
+  insertCollector,
+  updateCollector,
+  zoneIdFromName,
+  COLLECTOR_STATUS_DB_MAP,
+  cacheCollectorName,
+  type CollectorInsert,
+} from "@/lib/supabase-data";
+import type {
+  Collector,
+  CollectorStatus,
+  CollectorType,
+  Zone,
 } from "@/lib/mock-data";
 
-// Central runtime store for collectors. Everything that needs to render collectors — the
-// Collectors page, Tasks assignment dropdowns, Overview active-collector metrics — reads from
-// this single source of truth via `useCollectorStore()` so Add / Edit / status-change actions
-// propagate everywhere without page-local duplicate arrays.
+// ─── Store state ────────────────────────────────────────────────────────────
 
-let state: Collector[] = [...initialCollectors];
+interface CollectorStoreState {
+  collectors: Collector[];
+  loading: boolean;
+  error: string | null;
+}
+
+let state: CollectorStoreState = {
+  collectors: [],
+  loading: true,
+  error: null,
+};
+
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -29,6 +45,8 @@ function getSnapshot() {
   return state;
 }
 
+// ─── Actions ────────────────────────────────────────────────────────────────
+
 export interface NewCollectorInput {
   name: string;
   phone: string;
@@ -40,42 +58,103 @@ export interface NewCollectorInput {
   internalNotes?: string;
 }
 
-export const collectorStoreActions = {
-  createCollector(input: NewCollectorInput, now: string): Collector {
-    const collector: Collector = {
-      id: nextCollectorId(),
-      name: input.name,
-      phone: input.phone,
-      zone: input.zone,
-      status: input.status,
-      collectorType: input.collectorType,
-      organization: input.organization,
-      preferredLanguage: input.preferredLanguage,
-      internalNotes: input.internalNotes,
-      registeredAt: now,
-      lastActiveAt: "—",
+let fetchPromise: Promise<void> | null = null;
+
+async function loadCollectors(): Promise<void> {
+  state = { ...state, loading: true, error: null };
+  emit();
+  try {
+    const collectors = await fetchCollectors();
+    for (const c of collectors) cacheCollectorName(c.id, c.name);
+    state = { collectors, loading: false, error: null };
+  } catch (err) {
+    state = {
+      ...state,
+      loading: false,
+      error: err instanceof Error ? err.message : "Failed to load collectors",
     };
-    state = [collector, ...state];
+  }
+  emit();
+}
+
+export const collectorStoreActions = {
+  async init() {
+    if (fetchPromise) return fetchPromise;
+    fetchPromise = loadCollectors();
+    return fetchPromise;
+  },
+
+  async refresh() {
+    fetchPromise = null;
+    return this.init();
+  },
+
+  async createCollector(input: NewCollectorInput): Promise<Collector> {
+    const row: CollectorInsert = {
+      name: input.name,
+      phone_e164: input.phone,
+      zone_id: zoneIdFromName(input.zone),
+      status: COLLECTOR_STATUS_DB_MAP[input.status],
+      collector_type: input.collectorType,
+      organization_affiliation: input.organization,
+      preferred_language: input.preferredLanguage,
+      notes: input.internalNotes,
+    };
+    const collector = await insertCollector(row);
+    cacheCollectorName(collector.id, collector.name);
+    state = {
+      ...state,
+      collectors: [collector, ...state.collectors],
+    };
     emit();
     return collector;
   },
 
-  editCollector(id: string, patch: Partial<NewCollectorInput>) {
-    state = state.map((c) => (c.id === id ? { ...c, ...patch } : c));
-    emit();
+  async editCollector(id: string, patch: Partial<NewCollectorInput>) {
+    const dbPatch: Partial<CollectorInsert> = {};
+    if (patch.name !== undefined) dbPatch.name = patch.name;
+    if (patch.phone !== undefined) dbPatch.phone_e164 = patch.phone;
+    if (patch.zone !== undefined) dbPatch.zone_id = zoneIdFromName(patch.zone);
+    if (patch.status !== undefined)
+      dbPatch.status = COLLECTOR_STATUS_DB_MAP[patch.status];
+    if (patch.collectorType !== undefined)
+      dbPatch.collector_type = patch.collectorType;
+    if (patch.organization !== undefined)
+      dbPatch.organization_affiliation = patch.organization;
+    if (patch.preferredLanguage !== undefined)
+      dbPatch.preferred_language = patch.preferredLanguage;
+    if (patch.internalNotes !== undefined) dbPatch.notes = patch.internalNotes;
+
+    await updateCollector(id, dbPatch);
+    await this.refresh();
   },
 
-  setStatus(id: string, status: CollectorStatus) {
-    state = state.map((c) => (c.id === id ? { ...c, status } : c));
-    emit();
+  async setStatus(id: string, status: CollectorStatus) {
+    await updateCollector(id, {
+      status: COLLECTOR_STATUS_DB_MAP[status],
+    });
+    await this.refresh();
   },
 };
 
+// ─── Hooks ──────────────────────────────────────────────────────────────────
+
 export function useCollectorStore(): Collector[] {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  useCollectorStoreState();
+  // Initialize on first use
+  collectorStoreActions.init();
+
+  const getCollectors = useCallback(() => state.collectors, []);
+  return useSyncExternalStore(subscribe, getCollectors, getCollectors);
+}
+
+export function useCollectorStoreState(): CollectorStoreState {
+  collectorStoreActions.init();
+  const get = useCallback(() => state, []);
+  return useSyncExternalStore(subscribe, get, get);
 }
 
 // Non-hook accessor for read-only, non-reactive callers (e.g. helpers outside React).
 export function getCollectors(): Collector[] {
-  return state;
+  return state.collectors;
 }

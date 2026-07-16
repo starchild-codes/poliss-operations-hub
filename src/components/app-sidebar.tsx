@@ -23,7 +23,7 @@ import {
 import polisLogo from "@/assets/polis-logo.jpeg.asset.json";
 
 const nav = [
-  { title: "Overview", url: "/", icon: LayoutDashboard },
+  { title: "Overview", url: "/overview", icon: LayoutDashboard },
   { title: "Tasks", url: "/tasks", icon: ClipboardList },
   { title: "Review", url: "/review", icon: ShieldCheck },
   { title: "Collectors", url: "/collectors", icon: Users },
@@ -69,7 +69,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {nav.map((item) => {
                 const active =
-                  item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
+                  item.url === "/overview" ? pathname === "/overview" : pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton
