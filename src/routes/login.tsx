@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader as Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
