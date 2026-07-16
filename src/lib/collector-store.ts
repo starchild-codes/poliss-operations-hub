@@ -1,5 +1,4 @@
 import { useSyncExternalStore, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   fetchCollectors,
   insertCollector,

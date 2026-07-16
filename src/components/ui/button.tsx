@@ -21,20 +21,45 @@ const sizeClasses: Record<Size, string> = {
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  asChild?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", ...props }, ref) => (
-    <button
-      ref={ref}
-      className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        variantClasses[variant],
-        sizeClasses[size],
-        className,
-      )}
-      {...props}
-    />
-  ),
+  ({ className, variant = "default", size = "default", asChild, ...props }, ref) => {
+    const classes = cn(
+      "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+      variantClasses[variant],
+      sizeClasses[size],
+      className,
+    );
+
+    if (asChild) {
+      const { children } = props;
+      const child = children as React.ReactElement<{ className?: string }>;
+      if (child && child.props) {
+        return {
+          ...child,
+          props: { ...child.props, className: cn(classes, child.props.className) },
+        } as React.ReactElement;
+      }
+      return null;
+    }
+
+    return (
+      <button
+        ref={ref}
+        className={classes}
+        {...props}
+      />
+    );
+  },
 );
 Button.displayName = "Button";
+
+export const buttonVariants = ({ variant = "default", size = "default", className }: { variant?: Variant; size?: Size; className?: string }) =>
+  cn(
+    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+    variantClasses[variant],
+    sizeClasses[size],
+    className,
+  );

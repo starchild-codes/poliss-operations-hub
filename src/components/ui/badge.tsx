@@ -1,10 +1,11 @@
 import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-type Variant = "default" | "success" | "warning" | "destructive" | "info" | "muted";
+type Variant = "default" | "secondary" | "success" | "warning" | "destructive" | "info" | "muted";
 
 const variantClasses: Record<Variant, string> = {
   default: "border-border bg-muted text-foreground",
+  secondary: "border-border bg-muted/60 text-muted-foreground",
   success: "border-success/30 bg-success/10 text-success",
   warning: "border-warning/30 bg-warning/10 text-warning",
   destructive: "border-destructive/30 bg-destructive/10 text-destructive",

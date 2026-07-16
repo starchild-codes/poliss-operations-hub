@@ -45,6 +45,10 @@ export function AlertDialogFooter({ children }: { children: ReactNode }) {
   return <div className="mt-6 flex justify-end gap-2">{children}</div>;
 }
 
+export function AlertDialogContent({ children }: { children: ReactNode }) {
+  return <div className="space-y-4">{children}</div>;
+}
+
 export function AlertDialogCancel({
   onClick,
   children,
@@ -65,15 +69,18 @@ export function AlertDialogCancel({
 export function AlertDialogAction({
   onClick,
   className,
+  disabled,
   children,
 }: {
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
   children: ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90",
         className,

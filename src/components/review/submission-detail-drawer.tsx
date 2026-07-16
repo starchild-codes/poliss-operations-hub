@@ -13,9 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  MapPin, Phone, User, Calendar, Clock, ImageIcon, CheckCircle2, XCircle,
-} from "lucide-react";
+import { MapPin, Phone, User, Calendar, Clock, Image as ImageIcon, CircleCheck as CheckCircle2, Circle as XCircle } from "lucide-react";
 import {
   formatFriendlyDateTime, formatFriendlyDate, CHECKLIST_LABELS, REJECTION_REASONS,
   computeCollectorStats,

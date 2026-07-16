@@ -262,7 +262,7 @@ export function CreateTaskSheet({
               <Textarea value={values.internalNotes} onChange={(e) => set("internalNotes", e.target.value)} placeholder="Visible to operators only" />
             </Field>
             <label className="flex items-center gap-2 text-sm text-foreground">
-              <Checkbox checked={values.hasReferencePhoto} onCheckedChange={(v) => set("hasReferencePhoto", !!v)} />
+              <Checkbox checked={values.hasReferencePhoto} onCheckedChange={(v: boolean) => set("hasReferencePhoto", !!v)} />
               Reference photo attached (mock placeholder)
             </label>
           </section>

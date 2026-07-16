@@ -7,7 +7,6 @@ import {
   insertTaskEvent,
   zoneIdFromName,
   collectorIdFromName,
-  cacheCollectorName,
   uiDateToIso,
   taskStatusToDb,
   type TaskInsert,
@@ -16,11 +15,9 @@ import { getCollectors } from "@/lib/collector-store";
 import type {
   Task,
   TaskEvent,
-  TaskStatus,
   HotspotType,
   Priority,
   Zone,
-  WasteType,
 } from "@/lib/mock-data";
 
 // ─── Store state ────────────────────────────────────────────────────────────

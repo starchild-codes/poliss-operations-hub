@@ -83,7 +83,7 @@ export function SelectContent({ children, className }: { children: ReactNode; cl
   );
 }
 
-export function SelectItem({ value, children }: { value: string; children: ReactNode }) {
+export function SelectItem({ value, children, className }: { value: string; children: ReactNode; className?: string }) {
   const ctx = useContext(SelectContext);
   if (!ctx) throw new Error("SelectItem must be inside Select");
   const isSelected = ctx.value === value;
@@ -94,7 +94,10 @@ export function SelectItem({ value, children }: { value: string; children: React
         ctx.setSelectedLabel(typeof children === "string" ? children : String(children));
         ctx.setOpen(false);
       }}
-      className="relative flex cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent"
+      className={cn(
+        "relative flex cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent",
+        className,
+      )}
     >
       {isSelected && <Check className="absolute left-2 h-3.5 w-3.5" />}
       {children}

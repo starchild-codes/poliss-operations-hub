@@ -1,4 +1,16 @@
+import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type {
+  Submission as MockSubmission,
+  VerificationChecklist,
+  RejectionReason,
+  Priority,
+  Zone,
+  WasteType,
+} from "@/lib/mock-data";
+import { buildDefaultChecklist } from "@/lib/mock-data";
+import { fetchTasks } from "@/lib/supabase-data";
+import type { Task } from "@/lib/mock-data";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -244,7 +256,7 @@ export async function approveSubmission(
   const now = new Date().toISOString();
 
   // 2. Update submission to approved
-  const { error: subUpdateErr } = await supabase
+  const { data: updatedRows, error: subUpdateErr } = await supabase
     .from("submissions")
     .update({
       review_status: "approved",
@@ -253,9 +265,13 @@ export async function approveSubmission(
       rejection_reason: null,
       updated_at: now,
     })
-    .eq("id", submissionId);
+    .eq("id", submissionId)
+    .select("id");
 
   if (subUpdateErr) throw new Error(`Failed to approve submission: ${subUpdateErr.message}`);
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error("Failed to approve submission: no rows were updated. This may be a permissions issue — check RLS policies on the submissions table.");
+  }
 
   // 3. Update task status to approved
   const { error: taskErr } = await supabase
@@ -320,7 +336,7 @@ export async function rejectSubmission(
   const now = new Date().toISOString();
 
   // 2. Update submission to rejected (with rejection_reason)
-  const { error: subUpdateErr } = await supabase
+  const { data: updatedRows, error: subUpdateErr } = await supabase
     .from("submissions")
     .update({
       review_status: "rejected",
@@ -329,9 +345,13 @@ export async function rejectSubmission(
       rejection_reason: rejectionReason.trim(),
       updated_at: now,
     })
-    .eq("id", submissionId);
+    .eq("id", submissionId)
+    .select("id");
 
   if (subUpdateErr) throw new Error(`Failed to reject submission: ${subUpdateErr.message}`);
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error("Failed to reject submission: no rows were updated. This may be a permissions issue — check RLS policies on the submissions table.");
+  }
 
   // 3. Update task status to rejected
   const { error: taskErr } = await supabase
@@ -366,4 +386,86 @@ export async function rejectSubmission(
   if (eventErr) {
     console.warn("Rejected submission but failed to record task_event:", eventErr.message);
   }
+}
+
+// ─── useSubmissionStore (mock-data-compatible) ──────────────────────────────
+
+export interface SubmissionWithChecklist extends MockSubmission {
+  checklist: VerificationChecklist;
+}
+
+let mockSubmissions: SubmissionWithChecklist[] = [];
+let mockFetchPromise: Promise<void> | null = null;
+const mockListeners = new Set<() => void>();
+
+function mockEmit() {
+  for (const l of mockListeners) l();
+}
+function mockSubscribe(listener: () => void) {
+  mockListeners.add(listener);
+  return () => mockListeners.delete(listener);
+}
+
+async function loadMockSubmissions(): Promise<void> {
+  try {
+    const [subs, tasks] = await Promise.all([
+      fetchSubmissions(),
+      fetchTasks(),
+    ]);
+    const taskMap = new Map<string, Task>();
+    for (const t of tasks) taskMap.set(t.id, t);
+
+    mockSubmissions = subs.map((s): SubmissionWithChecklist => {
+      const task = taskMap.get(s.taskId);
+      const mockSub: MockSubmission = {
+        id: s.id,
+        taskId: s.taskId,
+        taskTitle: s.task?.title ?? "—",
+        collector: s.collector?.name ?? "—",
+        zone: (s.collector?.zoneName ?? "—") as Zone,
+        priority: (s.task?.priority ?? "medium") as Priority,
+        wasteType: (s.wasteType ?? "Mixed Municipal") as WasteType,
+        quantityKg: s.quantityEstimate ? Number(s.quantityEstimate) || 0 : 0,
+        submittedAt: s.submittedAt ?? s.createdAt,
+        latitude: s.submittedLatitude ?? 0,
+        longitude: s.submittedLongitude ?? 0,
+        hasBeforePhoto: !!s.beforePhotoPath,
+        hasAfterPhoto: !!s.afterPhotoPath,
+        decidedAt: s.reviewedAt ?? undefined,
+        status: s.reviewStatus,
+        note: s.collectorNotes ?? undefined,
+        reviewer: s.reviewedBy ?? undefined,
+        rejectionReason: (s.rejectionReason as RejectionReason | null) ?? undefined,
+        rejectionNote: undefined,
+      };
+      return {
+        ...mockSub,
+        checklist: buildDefaultChecklist(mockSub, task),
+      };
+    });
+  } catch {
+    mockSubmissions = [];
+  }
+  mockEmit();
+}
+
+export function useSubmissionStore(): SubmissionWithChecklist[] {
+  if (!mockFetchPromise) {
+    mockFetchPromise = loadMockSubmissions();
+  }
+  return useSyncExternalStore(
+    mockSubscribe,
+    () => mockSubmissions,
+    () => mockSubmissions,
+  );
+}
+
+export function getSubmissions(): SubmissionWithChecklist[] {
+  return mockSubmissions;
+}
+
+export async function refreshSubmissions(): Promise<void> {
+  mockFetchPromise = null;
+  mockFetchPromise = loadMockSubmissions();
+  return mockFetchPromise;
 }
