@@ -1,33 +1,29 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { PageHeader, EmptyState } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge, PriorityLabel } from "@/components/status-badge";
+import { Textarea } from "@/components/ui/textarea";
+import { ReviewStatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Search, X, ClipboardCheck, Clock3, CheckCircle2, XCircle, Timer,
-} from "lucide-react";
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetBody, SheetFooter,
+} from "@/components/ui/sheet";
+import { Search, X, ClipboardCheck, Clock3, CircleCheck as CheckCircle2, Circle as XCircle, MapPin, User, Phone, CircleAlert as AlertCircle, Image as ImageIcon, Weight, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
-  collectors, formatFriendlyDateTime, isTaskOverdue,
-  computeSubmissionCounts, computeAverageReviewMinutes,
-  type Zone, type Priority, type RejectionReason,
-} from "@/lib/mock-data";
-import { useTaskStore } from "@/lib/task-store";
-import { useSubmissionStore, submissionStoreActions, type SubmissionWithChecklist } from "@/lib/submission-store";
-import { SubmissionDetailDrawer } from "@/components/review/submission-detail-drawer";
+  fetchSubmissions, approveSubmission, rejectSubmission,
+  type SubmissionWithRelations,
+} from "@/lib/submission-store";
 
 export const Route = createFileRoute("/review")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    taskId: typeof search.taskId === "string" ? search.taskId : undefined,
-  }),
   head: () => ({
     meta: [
       { title: "Submission Review — Polis Systems" },
@@ -37,88 +33,92 @@ export const Route = createFileRoute("/review")({
   component: ReviewPage,
 });
 
-function nowIso(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10) + " " + d.toTimeString().slice(0, 5);
-}
-
 type ReviewTab = "pending" | "approved" | "rejected" | "all";
-type DateFilter = "any" | "today" | "week";
 
-function dateKeyOf(dateStr: string): string {
-  return dateStr.slice(0, 10);
-}
-
-function formatMinutes(mins: number): string {
-  if (mins <= 0) return "—";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  const remaining = mins % 60;
-  return remaining ? `${hours}h ${remaining}m` : `${hours}h`;
+function formatDateTime(ts: string | null): string {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
 }
 
 function ReviewPage() {
-  const search = Route.useSearch();
-  const navigate = useNavigate();
-  const { tasks } = useTaskStore();
-  const submissions = useSubmissionStore();
+  const { user } = useAuth();
+  const [submissions, setSubmissions] = useState<SubmissionWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [tab, setTab] = useState<ReviewTab>("pending");
   const [query, setQuery] = useState("");
-  const [zone, setZone] = useState<Zone | "all">("all");
-  const [priority, setPriority] = useState<Priority | "all">("all");
-  const [reviewStatus, setReviewStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("any");
+  const [zoneFilter, setZoneFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Deep-link support: Overview's "Review" link and the Tasks drawer's "Review submission"
-  // button both navigate here with ?taskId=..., so open the matching submission automatically
-  // and jump to the tab that actually contains it.
+  const loadSubmissions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchSubmissions();
+      setSubmissions(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load submissions");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!search.taskId) return;
-    const match = submissions.find((s) => s.taskId === search.taskId);
-    if (!match) return;
-    setTab(match.status === "pending" ? "pending" : match.status === "approved" ? "approved" : "rejected");
-    setSelectedId(match.id);
-    setDrawerOpen(true);
-  }, [search.taskId]);
+    loadSubmissions();
+  }, [loadSubmissions]);
 
-  const counts = computeSubmissionCounts(submissions);
-  const avgReviewMinutes = computeAverageReviewMinutes(submissions);
+  const counts = useMemo(() => ({
+    pending: submissions.filter((s) => s.reviewStatus === "pending").length,
+    approved: submissions.filter((s) => s.reviewStatus === "approved").length,
+    rejected: submissions.filter((s) => s.reviewStatus === "rejected").length,
+    all: submissions.length,
+  }), [submissions]);
+
+  const zones = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of submissions) {
+      if (s.task?.zoneName) set.add(s.task.zoneName);
+    }
+    return [...set].sort();
+  }, [submissions]);
 
   const filtered = useMemo(() => {
-    return submissions.filter((s) => {
-      if (tab !== "all" && s.status !== tab) return false;
-      if (reviewStatus !== "all" && s.status !== reviewStatus) return false;
-      if (zone !== "all" && s.zone !== zone) return false;
-      if (priority !== "all" && s.priority !== priority) return false;
-      if (dateFilter !== "any") {
-        const submittedKey = dateKeyOf(s.submittedAt);
-        const todayKey = dateKeyOf(nowIso());
-        if (dateFilter === "today" && submittedKey !== todayKey) return false;
-        if (dateFilter === "week") {
-          const diffDays = (new Date(todayKey).getTime() - new Date(submittedKey).getTime()) / 86_400_000;
-          if (diffDays < 0 || diffDays > 7) return false;
+    return submissions
+      .filter((s) => {
+        if (tab !== "all" && s.reviewStatus !== tab) return false;
+        if (zoneFilter !== "all" && s.task?.zoneName !== zoneFilter) return false;
+        if (query.trim()) {
+          const q = query.trim().toLowerCase();
+          const haystack = [
+            s.task?.title ?? "",
+            s.collector?.name ?? "",
+            s.task?.zoneName ?? "",
+            s.wasteType ?? "",
+          ].join(" ").toLowerCase();
+          if (!haystack.includes(q)) return false;
         }
-      }
-      if (query.trim()) {
-        const q = query.trim().toLowerCase();
-        const haystack = `${s.taskTitle} ${s.collector} ${s.zone} ${s.wasteType}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    }).sort((a, b) => new Date(b.submittedAt.replace(" ", "T")).getTime() - new Date(a.submittedAt.replace(" ", "T")).getTime());
-  }, [submissions, tab, reviewStatus, zone, priority, dateFilter, query]);
+        return true;
+      })
+      .sort((a, b) => {
+        const aDate = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+        const bDate = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        return bDate - aDate;
+      });
+  }, [submissions, tab, zoneFilter, query]);
 
-  const hasActiveFilters = query.trim() !== "" || zone !== "all" || priority !== "all" || reviewStatus !== "all" || dateFilter !== "any";
+  const hasActiveFilters = query.trim() !== "" || zoneFilter !== "all";
 
   function clearFilters() {
     setQuery("");
-    setZone("all");
-    setPriority("all");
-    setReviewStatus("all");
-    setDateFilter("any");
+    setZoneFilter("all");
   }
 
   function openSubmission(id: string) {
@@ -128,32 +128,54 @@ function ReviewPage() {
 
   function closeDrawer(open: boolean) {
     setDrawerOpen(open);
-    if (!open && search.taskId) {
-      navigate({ to: "/review", search: { taskId: undefined } });
+    if (!open) setSelectedId(null);
+  }
+
+  const selected = submissions.find((s) => s.id === selectedId) ?? null;
+
+  async function handleApprove() {
+    if (!selected || !user) return;
+    setActionLoading(true);
+    try {
+      await approveSubmission(selected.id, user.id);
+      toast.success("Submission approved", {
+        description: `${selected.task?.title ?? "Task"} marked as approved.`,
+      });
+      closeDrawer(false);
+      await loadSubmissions();
+    } catch (err) {
+      toast.error("Failed to approve", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+      await loadSubmissions();
+    } finally {
+      setActionLoading(false);
     }
   }
 
-  const selected: SubmissionWithChecklist | null = submissions.find((s) => s.id === selectedId) ?? null;
-  const selectedTask = selected ? tasks.find((t) => t.id === selected.taskId) : undefined;
-  const selectedCollector = selected ? collectors.find((c) => c.name === selected.collector) : undefined;
-
-  function handleApprove() {
-    if (!selected) return;
-    submissionStoreActions.approve(selected.id, nowIso());
-    toast.success("Submission approved", { description: `${selected.taskTitle} marked as approved.` });
-    closeDrawer(false);
-  }
-
-  function handleReject(reason: RejectionReason, note: string | undefined) {
-    if (!selected) return;
-    submissionStoreActions.reject(selected.id, reason, note, nowIso());
-    toast.error("Submission rejected", { description: `${selected.taskTitle} returned to ${selected.collector}.` });
-    closeDrawer(false);
+  async function handleReject(reason: string) {
+    if (!selected || !user) return;
+    setActionLoading(true);
+    try {
+      await rejectSubmission(selected.id, user.id, reason);
+      toast.error("Submission rejected", {
+        description: `${selected.task?.title ?? "Task"} returned to collector.`,
+      });
+      closeDrawer(false);
+      await loadSubmissions();
+    } catch (err) {
+      toast.error("Failed to reject", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+      await loadSubmissions();
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   const emptyState = (() => {
     if (hasActiveFilters && filtered.length === 0) {
-      return { title: "No submissions match your filters", description: "Try adjusting search, zone, priority, or date filters.", showClear: true };
+      return { title: "No submissions match your filters", description: "Try adjusting search or zone filters.", showClear: true };
     }
     if (tab === "pending") return { title: "All caught up", description: "No submissions are waiting for review. New field proof will appear here when collectors complete tasks." };
     if (tab === "approved") return { title: "No approved submissions yet", description: "Approved submissions will appear here once you review pending proof of work." };
@@ -171,7 +193,7 @@ function ReviewPage() {
           <MetricCard label="Awaiting Review" value={counts.pending} icon={<Clock3 className="h-4 w-4" />} tone="warning" />
           <MetricCard label="Approved" value={counts.approved} icon={<CheckCircle2 className="h-4 w-4" />} tone="success" />
           <MetricCard label="Rejected" value={counts.rejected} icon={<XCircle className="h-4 w-4" />} tone="destructive" />
-          <MetricCard label="Average Review Time" value={formatMinutes(avgReviewMinutes)} icon={<Timer className="h-4 w-4" />} />
+          <MetricCard label="Total" value={counts.all} icon={<ClipboardCheck className="h-4 w-4" />} />
         </section>
 
         {/* Tabs */}
@@ -180,7 +202,7 @@ function ReviewPage() {
             <TabsTrigger value="pending">Pending ({counts.pending})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({counts.approved})</TabsTrigger>
             <TabsTrigger value="rejected">Rejected ({counts.rejected})</TabsTrigger>
-            <TabsTrigger value="all">All ({submissions.length})</TabsTrigger>
+            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -192,49 +214,47 @@ function ReviewPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search task, collector, zone, or waste type"
-              className="h-8 pl-8 text-sm"
+              className="h-9 pl-8"
             />
           </div>
-          <Select value={zone} onValueChange={(v) => setZone(v as Zone | "all")}>
-            <SelectTrigger className="h-8 w-[120px] text-sm"><SelectValue placeholder="Zone" /></SelectTrigger>
+          <Select value={zoneFilter} onValueChange={setZoneFilter}>
+            <SelectTrigger className="h-9 w-[140px]">
+              <SelectValue placeholder="All zones" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All zones</SelectItem>
-              {(["North", "South", "East", "West", "Central"] as Zone[]).map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={priority} onValueChange={(v) => setPriority(v as Priority | "all")}>
-            <SelectTrigger className="h-8 w-[130px] text-sm"><SelectValue placeholder="Priority" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All priorities</SelectItem>
-              {(["low", "medium", "high", "urgent"] as Priority[]).map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={reviewStatus} onValueChange={(v) => setReviewStatus(v as typeof reviewStatus)}>
-            <SelectTrigger className="h-8 w-[150px] text-sm"><SelectValue placeholder="Review status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-            <SelectTrigger className="h-8 w-[150px] text-sm"><SelectValue placeholder="Submission date" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any date</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">Past 7 days</SelectItem>
+              {zones.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
             </SelectContent>
           </Select>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5" /> Clear filters
+            <Button variant="ghost" size="sm" className="h-9 gap-1 text-muted-foreground" onClick={clearFilters}>
+              <X className="h-3.5 w-3.5" /> Clear
             </Button>
           )}
         </div>
 
         {/* Submission queue */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3 rounded-md border border-border bg-card p-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center rounded-md border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+            <h3 className="mt-2 text-sm font-semibold text-destructive">Failed to load submissions</h3>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">{error}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={loadSubmissions}>Retry</Button>
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<ClipboardCheck className="h-5 w-5" />}
             title={emptyState.title}
@@ -242,50 +262,58 @@ function ReviewPage() {
             action={emptyState.showClear ? <Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button> : undefined}
           />
         ) : (
-          <div className="overflow-hidden rounded-md border border-border bg-card">
+          <div className="overflow-auto rounded-md border border-border bg-card">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Task</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="min-w-[200px]">Task</TableHead>
                   <TableHead>Collector</TableHead>
                   <TableHead>Zone</TableHead>
                   <TableHead>Submitted</TableHead>
-                  <TableHead>Waste type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Review status</TableHead>
+                  <TableHead>Waste Type</TableHead>
+                  <TableHead>Review Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((s) => {
-                  const task = tasks.find((t) => t.id === s.taskId);
-                  const overdue = task ? isTaskOverdue(task) : false;
-                  return (
-                    <TableRow key={s.id} className="cursor-pointer" onClick={() => openSubmission(s.id)}>
-                      <TableCell className="font-medium text-foreground">
-                        {s.taskTitle}
-                        {overdue && s.status === "pending" && <span className="ml-1.5 text-[11px] text-warning">Overdue task</span>}
-                      </TableCell>
-                      <TableCell>{s.collector}</TableCell>
-                      <TableCell>{s.zone}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatFriendlyDateTime(s.submittedAt)}</TableCell>
-                      <TableCell>{s.wasteType}</TableCell>
-                      <TableCell>{s.quantityKg} kg</TableCell>
-                      <TableCell><PriorityLabel priority={s.priority} /></TableCell>
-                      <TableCell><ReviewStatusBadge status={s.status} /></TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); openSubmission(s.id); }}
-                        >
-                          {s.status === "pending" ? "Review" : "View"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filtered.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    className="cursor-pointer"
+                    onClick={() => openSubmission(s.id)}
+                  >
+                    <TableCell>
+                      <div className="text-sm font-medium text-foreground">
+                        {s.task?.title ?? "Unknown task"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {s.task?.address ?? "—"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.collector?.name ?? "Unknown collector"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.task?.zoneName ?? "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {formatDateTime(s.submittedAt)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.wasteType ?? "—"}
+                    </TableCell>
+                    <TableCell><ReviewStatusBadge status={s.reviewStatus} /></TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); openSubmission(s.id); }}
+                      >
+                        {s.reviewStatus === "pending" ? "Review" : "View"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
@@ -294,36 +322,239 @@ function ReviewPage() {
 
       <SubmissionDetailDrawer
         submission={selected}
-        task={selectedTask}
-        collector={selectedCollector}
         open={drawerOpen}
         onOpenChange={closeDrawer}
-        onToggleChecklist={(key) => selected && submissionStoreActions.toggleChecklistItem(selected.id, key)}
         onApprove={handleApprove}
         onReject={handleReject}
+        actionLoading={actionLoading}
       />
     </>
   );
 }
 
-function ReviewStatusBadge({ status }: { status: "pending" | "approved" | "rejected" }) {
-  if (status === "pending") return <StatusBadge status="submitted" />;
-  if (status === "approved") return <StatusBadge status="approved" />;
-  return <StatusBadge status="rejected" />;
+// ─── Detail Drawer ──────────────────────────────────────────────────────────
+
+function SubmissionDetailDrawer({
+  submission,
+  open,
+  onOpenChange,
+  onApprove,
+  onReject,
+  actionLoading,
+}: {
+  submission: SubmissionWithRelations | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onApprove: () => void;
+  onReject: (reason: string) => void;
+  actionLoading: boolean;
+}) {
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setShowRejectForm(false);
+      setRejectReason("");
+    }
+  }, [open, submission?.id]);
+
+  if (!submission) return null;
+
+  const isPending = submission.reviewStatus === "pending";
+  const task = submission.task;
+  const collector = submission.collector;
+
+  function submitReject() {
+    if (!rejectReason.trim()) {
+      toast.error("Rejection reason required", { description: "Please provide a reason before rejecting." });
+      return;
+    }
+    onReject(rejectReason);
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-xl" onOpenChange={onOpenChange}>
+        <SheetHeader>
+          <SheetTitle>{task?.title ?? "Submission"}</SheetTitle>
+          <SheetDescription>
+            Submitted {formatDateTime(submission.submittedAt)}
+          </SheetDescription>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <ReviewStatusBadge status={submission.reviewStatus} />
+            {task && <Badge variant="muted">{task.priority} priority</Badge>}
+            {task && <Badge variant="muted">{task.hotspotType}</Badge>}
+          </div>
+        </SheetHeader>
+
+        <SheetBody className="space-y-6">
+          {/* Task info */}
+          {task && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Task Details</h3>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-md border border-border bg-card p-4">
+                <DetailRow icon={<MapPin className="h-3.5 w-3.5" />} label="Location" value={task.address ?? "—"} />
+                <DetailRow label="Zone" value={task.zoneName} />
+                <DetailRow label="Hotspot type" value={task.hotspotType} />
+                <DetailRow label="Priority" value={task.priority} />
+                <DetailRow label="Task status" value={task.status.replace(/_/g, " ")} />
+                <DetailRow label="Due date" value={formatDateTime(task.dueAt)} />
+              </div>
+              {task.description && (
+                <p className="mt-2 text-sm text-muted-foreground">{task.description}</p>
+              )}
+            </section>
+          )}
+
+          {/* Collector info */}
+          {collector && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Collector</h3>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-md border border-border bg-card p-4">
+                <DetailRow icon={<User className="h-3.5 w-3.5" />} label="Name" value={collector.name} />
+                <DetailRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={collector.phone} />
+                <DetailRow label="Zone" value={collector.zoneName} />
+              </div>
+            </section>
+          )}
+
+          {/* Submission evidence */}
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Submission Evidence</h3>
+            <div className="space-y-3 rounded-md border border-border bg-card p-4">
+              <DetailRow icon={<Weight className="h-3.5 w-3.5" />} label="Waste type" value={submission.wasteType ?? "—"} />
+              <DetailRow label="Quantity estimate" value={submission.quantityEstimate ?? "—"} />
+              {submission.submittedLatitude != null && submission.submittedLongitude != null && (
+                <DetailRow
+                  icon={<MapPin className="h-3.5 w-3.5" />}
+                  label="GPS coordinates"
+                  value={`${submission.submittedLatitude.toFixed(5)}, ${submission.submittedLongitude.toFixed(5)}`}
+                />
+              )}
+              {submission.beforePhotoPath && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <ImageIcon className="h-3.5 w-3.5" /> Before photo: <span className="font-mono text-xs">{submission.beforePhotoPath}</span>
+                </div>
+              )}
+              {submission.afterPhotoPath && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <ImageIcon className="h-3.5 w-3.5" /> After photo: <span className="font-mono text-xs">{submission.afterPhotoPath}</span>
+                </div>
+              )}
+              {submission.collectorNotes && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <MessageSquare className="h-3.5 w-3.5" /> Collector notes
+                  </div>
+                  <p className="text-sm text-foreground">{submission.collectorNotes}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Rejection info for already-rejected */}
+          {submission.reviewStatus === "rejected" && submission.rejectionReason && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rejection Reason</h3>
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-sm text-foreground">{submission.rejectionReason}</p>
+                {submission.reviewedAt && (
+                  <p className="mt-2 text-xs text-muted-foreground">Rejected on {formatDateTime(submission.reviewedAt)}</p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Reject form */}
+          {isPending && showRejectForm && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-destructive">Rejection Reason</h3>
+              <div className="space-y-2">
+                <Textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Explain why this submission is being returned to the collector..."
+                  className="min-h-[100px]"
+                />
+                <p className="text-xs text-muted-foreground">This reason is stored in submissions.rejection_reason and recorded in task_events.metadata.</p>
+              </div>
+            </section>
+          )}
+        </SheetBody>
+
+        {/* Footer actions */}
+        {isPending && (
+          <SheetFooter className="flex-col gap-2 sm:flex-row">
+            {showRejectForm ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRejectForm(false)}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={submitReject}
+                  disabled={actionLoading || !rejectReason.trim()}
+                >
+                  {actionLoading ? "Rejecting..." : "Confirm rejection"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="border-destructive/30 text-destructive hover:bg-destructive/5"
+                  onClick={() => setShowRejectForm(true)}
+                  disabled={actionLoading}
+                >
+                  <XCircle className="h-4 w-4" /> Reject
+                </Button>
+                <Button
+                  onClick={onApprove}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "Approving..." : "Approve submission"}
+                </Button>
+              </>
+            )}
+          </SheetFooter>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function DetailRow({
+  icon, label, value,
+}: { icon?: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+        {icon}{label}
+      </div>
+      <div className="mt-0.5 truncate text-sm text-foreground">{value}</div>
+    </div>
+  );
 }
 
 function MetricCard({
-  label,
-  value,
-  icon,
-  tone = "default",
+  label, value, icon, tone = "default",
 }: {
   label: string;
-  value: number | string;
+  value: number;
   icon: React.ReactNode;
   tone?: "default" | "warning" | "success" | "destructive";
 }) {
-  const toneClass = { default: "text-muted-foreground", warning: "text-warning", success: "text-success", destructive: "text-destructive" }[tone];
+  const toneClass = {
+    default: "text-muted-foreground",
+    warning: "text-warning",
+    success: "text-success",
+    destructive: "text-destructive",
+  }[tone];
   return (
     <div className="rounded-md border border-border bg-card p-3.5">
       <div className="flex items-center justify-between">
