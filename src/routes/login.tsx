@@ -31,7 +31,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (session) {
-      navigate({ to: "/tasks" });
+      navigate({ to: "/overview" });
     }
   }, [session, navigate]);
 
@@ -58,7 +58,7 @@ function LoginPage() {
           password,
         });
         if (error) throw error;
-        navigate({ to: "/tasks" });
+        navigate({ to: "/overview" });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -72,7 +72,8 @@ function LoginPage() {
     setError(null);
     setNotice(null);
     try {
-      const { error } = await supabase.auth.signInWithOAuth("google", {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
         options: { redirectTo: window.location.origin },
       });
       if (error) throw error;
