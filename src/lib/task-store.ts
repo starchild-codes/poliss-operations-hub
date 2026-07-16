@@ -1,24 +1,44 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useCallback } from "react";
 import {
-  tasks as initialTasks,
-  initialTaskEvents,
-  nextTaskId,
-  CURRENT_OPERATOR,
-  taskTransitions,
-  type Task,
-  type TaskEvent,
-  type TaskStatus,
-  type HotspotType,
-  type Priority,
-  type Zone,
+  fetchTasks,
+  insertTask,
+  updateTask,
+  fetchAllTaskEvents,
+  insertTaskEvent,
+  zoneIdFromName,
+  collectorIdFromName,
+  cacheCollectorName,
+  uiDateToIso,
+  taskStatusToDb,
+  type TaskInsert,
+} from "@/lib/supabase-data";
+import { getCollectors } from "@/lib/collector-store";
+import type {
+  Task,
+  TaskEvent,
+  TaskStatus,
+  HotspotType,
+  Priority,
+  Zone,
+  WasteType,
 } from "@/lib/mock-data";
 
-// A tiny, dependency-free store so the Tasks workspace can mutate the shared task list at
-// runtime and every consumer (Tasks table, task drawer, Overview metrics) reads the same live
-// data via `useTaskStore()` instead of a frozen import-time snapshot.
+// ─── Store state ────────────────────────────────────────────────────────────
 
-let tasksState: Task[] = [...initialTasks];
-let eventsState: TaskEvent[] = [...initialTaskEvents];
+interface TaskStoreState {
+  tasks: Task[];
+  events: TaskEvent[];
+  loading: boolean;
+  error: string | null;
+}
+
+let state: TaskStoreState = {
+  tasks: [],
+  events: [],
+  loading: true,
+  error: null,
+};
+
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -30,21 +50,7 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-function getTasksSnapshot() {
-  return tasksState;
-}
-
-function getEventsSnapshot() {
-  return eventsState;
-}
-
-function addEvent(taskId: string, message: string, timestamp: string) {
-  eventsState = [...eventsState, { id: `${taskId}-E${eventsState.length + 1}-${Date.now()}`, taskId, timestamp, message }];
-}
-
-function touch(taskId: string, patch: Partial<Task>, now: string) {
-  tasksState = tasksState.map((t) => (t.id === taskId ? { ...t, ...patch, updatedAt: now } : t));
-}
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface NewTaskInput {
   title: string;
@@ -64,112 +70,200 @@ export interface NewTaskInput {
   hasReferencePhoto?: boolean;
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function resolveAssigneeId(assigneeName: string | undefined): string | null {
+  if (!assigneeName) return null;
+  return collectorIdFromName(assigneeName, getCollectors());
+}
+
+let fetchPromise: Promise<void> | null = null;
+
+async function loadTasks(): Promise<void> {
+  state = { ...state, loading: true, error: null };
+  emit();
+  try {
+    const [tasks, events] = await Promise.all([
+      fetchTasks(),
+      fetchAllTaskEvents(),
+    ]);
+    state = { tasks, events, loading: false, error: null };
+  } catch (err) {
+    state = {
+      ...state,
+      loading: false,
+      error: err instanceof Error ? err.message : "Failed to load tasks",
+    };
+  }
+  emit();
+}
+
+// ─── Actions ────────────────────────────────────────────────────────────────
+
 export const taskStoreActions = {
-  createTask(input: NewTaskInput, now: string): Task {
-    const id = nextTaskId();
-    const status: TaskStatus = input.assignee ? "assigned" : "open";
-    const task: Task = {
-      id,
+  async init() {
+    if (fetchPromise) return fetchPromise;
+    fetchPromise = loadTasks();
+    return fetchPromise;
+  },
+
+  async refresh() {
+    fetchPromise = null;
+    return this.init();
+  },
+
+  async createTask(input: NewTaskInput): Promise<Task> {
+    const assigneeId = resolveAssigneeId(input.assignee);
+    const status: string = input.assignee ? "assigned" : "draft";
+    const row: TaskInsert = {
       title: input.title,
       description: input.description,
-      location: input.location,
+      address: input.location,
       latitude: input.latitude,
       longitude: input.longitude,
-      zone: input.zone,
+      zone_id: zoneIdFromName(input.zone),
       status,
       priority: input.priority,
-      hotspotType: input.hotspotType,
-      assignee: input.assignee,
-      createdBy: CURRENT_OPERATOR,
-      createdAt: now,
-      updatedAt: now,
-      dueAt: input.dueAt,
-      wasteType: input.wasteType,
-      estimatedWasteKg: input.estimatedWasteKg ?? 0,
+      hotspot_type: input.hotspotType,
+      collector_id: assigneeId,
+      due_at: uiDateToIso(input.dueAt),
+      estimated_quantity: input.estimatedWasteKg != null ? String(input.estimatedWasteKg) : "0",
       instructions: input.instructions,
-      internalNotes: input.internalNotes,
-      hasReferencePhoto: input.hasReferencePhoto,
+      internal_notes: input.internalNotes,
+      reference_photo_path: input.hasReferencePhoto ? "placeholder" : null,
     };
-    tasksState = [task, ...tasksState];
-    addEvent(id, `Task created by ${CURRENT_OPERATOR}`, now);
-    if (input.assignee) addEvent(id, `Assigned to ${input.assignee}`, now);
-    emit();
+    const task = await insertTask(row);
+    await insertTaskEvent(task.id, "created", "Task created");
+    if (input.assignee) {
+      await insertTaskEvent(task.id, "assigned", `Assigned to ${input.assignee}`);
+    }
+    await this.refresh();
     return task;
   },
 
-  editTask(taskId: string, patch: Partial<NewTaskInput>, now: string) {
-    touch(taskId, patch as Partial<Task>, now);
-    addEvent(taskId, "Task details updated", now);
-    emit();
+  async editTask(taskId: string, patch: Partial<NewTaskInput>) {
+    const dbPatch: Partial<TaskInsert> = {};
+    if (patch.title !== undefined) dbPatch.title = patch.title;
+    if (patch.description !== undefined) dbPatch.description = patch.description;
+    if (patch.location !== undefined) dbPatch.address = patch.location;
+    if (patch.latitude !== undefined) dbPatch.latitude = patch.latitude;
+    if (patch.longitude !== undefined) dbPatch.longitude = patch.longitude;
+    if (patch.zone !== undefined) dbPatch.zone_id = zoneIdFromName(patch.zone);
+    if (patch.priority !== undefined) dbPatch.priority = patch.priority;
+    if (patch.hotspotType !== undefined)
+      dbPatch.hotspot_type = patch.hotspotType;
+    if (patch.estimatedWasteKg !== undefined)
+      dbPatch.estimated_quantity = String(patch.estimatedWasteKg);
+    if (patch.instructions !== undefined) dbPatch.instructions = patch.instructions;
+    if (patch.internalNotes !== undefined)
+      dbPatch.internal_notes = patch.internalNotes;
+    if (patch.hasReferencePhoto !== undefined)
+      dbPatch.reference_photo_path = patch.hasReferencePhoto ? "placeholder" : null;
+    if (patch.dueAt !== undefined) dbPatch.due_at = uiDateToIso(patch.dueAt);
+    if (patch.assignee !== undefined) {
+      dbPatch.collector_id = resolveAssigneeId(patch.assignee);
+      dbPatch.status = patch.assignee ? "assigned" : "draft";
+    }
+
+    await updateTask(taskId, dbPatch);
+    await insertTaskEvent(taskId, "updated", "Task details updated");
+    await this.refresh();
   },
 
-  assignCollector(taskId: string, collector: string, now: string) {
-    const task = tasksState.find((t) => t.id === taskId);
-    if (!task) return;
-    const allowed = taskTransitions[task.status].includes("assigned") || task.status === "assigned";
-    const nextStatus: TaskStatus = task.status === "open" ? "assigned" : task.status;
-    if (!allowed && task.status !== "open") return;
-    touch(taskId, { assignee: collector, status: nextStatus }, now);
-    addEvent(taskId, `Assigned to ${collector}`, now);
-    emit();
+  async assignCollector(taskId: string, collectorName: string) {
+    const collectorId = resolveAssigneeId(collectorName);
+    if (!collectorId) return;
+    const task = state.tasks.find((t) => t.id === taskId);
+    const nextStatus: string = task?.status === "open" ? "assigned" : task?.status ?? "assigned";
+    await updateTask(taskId, {
+      collector_id: collectorId,
+      status: taskStatusToDb(nextStatus),
+    });
+    await insertTaskEvent(taskId, "assigned", `Assigned to ${collectorName}`);
+    await this.refresh();
   },
 
-  reassignCollector(taskId: string, collector: string, now: string) {
-    const task = tasksState.find((t) => t.id === taskId);
-    if (!task) return;
-    const previous = task.assignee;
-    const nextStatus: TaskStatus = task.status === "declined" ? "assigned" : task.status;
-    touch(taskId, { assignee: collector, status: nextStatus }, now);
-    addEvent(
+  async reassignCollector(taskId: string, collectorName: string) {
+    const collectorId = resolveAssigneeId(collectorName);
+    if (!collectorId) return;
+    const task = state.tasks.find((t) => t.id === taskId);
+    const previous = task?.assignee;
+    const nextStatus: string = task?.status === "declined" ? "assigned" : task?.status ?? "assigned";
+    await updateTask(taskId, {
+      collector_id: collectorId,
+      status: taskStatusToDb(nextStatus),
+    });
+    await insertTaskEvent(
       taskId,
-      previous ? `Reassigned from ${previous} to ${collector}` : `Assigned to ${collector}`,
-      now,
+      "reassigned",
+      previous
+        ? `Reassigned from ${previous} to ${collectorName}`
+        : `Assigned to ${collectorName}`,
     );
-    emit();
+    await this.refresh();
   },
 
-  cancelTask(taskId: string, now: string) {
-    const task = tasksState.find((t) => t.id === taskId);
-    if (!task) return;
-    touch(taskId, { status: "canceled" }, now);
-    addEvent(taskId, "Task canceled by operator", now);
-    emit();
+  async cancelTask(taskId: string) {
+    await updateTask(taskId, { status: "canceled" });
+    await insertTaskEvent(taskId, "canceled", "Task canceled by operator");
+    await this.refresh();
   },
 
-  requestResubmission(taskId: string, now: string) {
-    const task = tasksState.find((t) => t.id === taskId);
-    if (!task) return;
-    touch(taskId, {}, now);
-    addEvent(taskId, `Resubmission requested from ${task.assignee ?? "collector"}`, now);
-    emit();
+  async requestResubmission(taskId: string) {
+    const task = state.tasks.find((t) => t.id === taskId);
+    await insertTaskEvent(
+      taskId,
+      "resubmission_requested",
+      `Resubmission requested from ${task?.assignee ?? "collector"}`,
+    );
+    await this.refresh();
   },
 
-  // Called by the submission store when a reviewer approves proof of work — keeps the task's
-  // status in lockstep with the submission decision everywhere the task is read (Tasks, Overview).
-  approveTask(taskId: string, now: string) {
-    const task = tasksState.find((t) => t.id === taskId);
-    if (!task) return;
-    touch(taskId, { status: "approved" }, now);
-    addEvent(taskId, `Submission approved by ${CURRENT_OPERATOR}`, now);
-    emit();
+  async approveTask(taskId: string, _now?: string) {
+    await updateTask(taskId, { status: "approved" });
+    const task = state.tasks.find((t) => t.id === taskId);
+    await insertTaskEvent(
+      taskId,
+      "approved",
+      `Submission approved${task?.assignee ? ` — ${task.assignee}` : ""}`,
+    );
+    await this.refresh();
   },
 
-  rejectTask(taskId: string, now: string, reason: string) {
-    const task = tasksState.find((t) => t.id === taskId);
-    if (!task) return;
-    touch(taskId, { status: "rejected" }, now);
-    addEvent(taskId, `Submission rejected by ${CURRENT_OPERATOR} — ${reason}`, now);
-    emit();
+  async rejectTask(taskId: string, _now?: string, reason?: string) {
+    await updateTask(taskId, { status: "rejected" });
+    await insertTaskEvent(
+      taskId,
+      "rejected",
+      `Submission rejected${reason ? ` — ${reason}` : ""}`,
+    );
+    await this.refresh();
   },
 };
 
-export function useTaskStore() {
-  const tasks = useSyncExternalStore(subscribe, getTasksSnapshot, getTasksSnapshot);
-  const events = useSyncExternalStore(subscribe, getEventsSnapshot, getEventsSnapshot);
-  return { tasks, events };
+// ─── Hooks ──────────────────────────────────────────────────────────────────
+
+export function useTaskStore(): {
+  tasks: Task[];
+  events: TaskEvent[];
+  loading: boolean;
+  error: string | null;
+} {
+  taskStoreActions.init();
+  const get = useCallback(
+    () => ({ tasks: state.tasks, events: state.events, loading: state.loading, error: state.error }),
+    [],
+  );
+  return useSyncExternalStore(subscribe, get, get);
 }
 
 export function useTaskEvents(taskId: string): TaskEvent[] {
-  const events = useSyncExternalStore(subscribe, getEventsSnapshot, getEventsSnapshot);
-  return events.filter((e) => e.taskId === taskId);
+  taskStoreActions.init();
+  const all = useSyncExternalStore(subscribe, () => state.events, () => state.events);
+  if (taskId === "__none") return [];
+  return all.filter((e) => e.taskId === taskId);
+}
+
+export function getTasks(): Task[] {
+  return state.tasks;
 }

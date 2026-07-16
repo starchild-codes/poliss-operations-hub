@@ -23,10 +23,12 @@ import {
 } from "@/lib/mock-data";
 import { useTaskStore, taskStoreActions, type NewTaskInput } from "@/lib/task-store";
 import { useCollectorStore } from "@/lib/collector-store";
+import { useZones } from "@/lib/zone-store";
 import { CreateTaskSheet } from "@/components/tasks/create-task-sheet";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
-import { Plus, Search, X, ListFilter, MoreHorizontal, AlertTriangle } from "lucide-react";
+import { Plus, Search, X, ListFilter, MoveHorizontal as MoreHorizontal, TriangleAlert as AlertTriangle, CircleAlert as AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -56,7 +58,9 @@ const SUMMARY_CHIPS: { key: string; label: string; match: (t: Task, overdue: boo
 ];
 
 function TasksPage() {
-  const { tasks } = useTaskStore();
+  const { tasks, loading, error } = useTaskStore();
+  const zones = useZones();
+  const zoneNames = zones.length > 0 ? zones.map((z) => z.name) : ["North", "South", "East", "West", "Central"];
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | "all">("all");
   const [collectorFilter, setCollectorFilter] = useState<string>("all");
@@ -70,6 +74,7 @@ function TasksPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const collectors = useCollectorStore();
   const collectorNames = useMemo(() => Array.from(new Set(collectors.map((c) => c.name))), [collectors]);
@@ -116,54 +121,74 @@ function TasksPage() {
     setDrawerOpen(true);
   }
 
-  function handleCreate(input: NewTaskInput) {
-    const task = taskStoreActions.createTask(input, nowIso());
-    toast.success("Task created", { description: `${task.title} was added${task.assignee ? ` and assigned to ${task.assignee}` : " as a draft"}.` });
+  async function handleCreate(input: NewTaskInput) {
+    setSaving(true);
+    try {
+      const task = await taskStoreActions.createTask(input);
+      toast.success("Task created", { description: `${task.title} was added${task.assignee ? ` and assigned to ${task.assignee}` : " as a draft"}.` });
+    } catch (err) {
+      toast.error("Failed to create task", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleEdit(taskId: string, patch: Partial<NewTaskInput>) {
-    taskStoreActions.editTask(taskId, patch, nowIso());
-    toast.success("Task updated");
+  async function handleEdit(taskId: string, patch: Partial<NewTaskInput>) {
+    setSaving(true);
+    try {
+      await taskStoreActions.editTask(taskId, patch);
+      toast.success("Task updated");
+    } catch (err) {
+      toast.error("Failed to update task", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDrawerAction(action: "edit" | "assign" | "reassign" | "cancel" | "resubmit" | "export", collector?: string) {
+  async function handleDrawerAction(action: "edit" | "assign" | "reassign" | "cancel" | "resubmit" | "export", collector?: string) {
     if (!selectedTask) return;
-    const now = nowIso();
     if (action === "edit") {
       setEditingTask(selectedTask);
       setDrawerOpen(false);
       setCreateOpen(true);
       return;
     }
-    if (action === "assign" && collector) {
-      taskStoreActions.assignCollector(selectedTask.id, collector, now);
-      toast.success("Collector assigned", { description: `${selectedTask.title} assigned to ${collector}.` });
+    try {
+      if (action === "assign" && collector) {
+        await taskStoreActions.assignCollector(selectedTask.id, collector);
+        toast.success("Collector assigned", { description: `${selectedTask.title} assigned to ${collector}.` });
+      }
+      if (action === "reassign" && collector) {
+        await taskStoreActions.reassignCollector(selectedTask.id, collector);
+        toast.success("Collector reassigned", { description: `${selectedTask.title} is now with ${collector}.` });
+      }
+      if (action === "cancel") {
+        await taskStoreActions.cancelTask(selectedTask.id);
+        toast("Task canceled", { description: `${selectedTask.title} was canceled.` });
+        setDrawerOpen(false);
+      }
+      if (action === "resubmit") {
+        await taskStoreActions.requestResubmission(selectedTask.id);
+        toast.success("Resubmission requested", { description: `${selectedTask.assignee ?? "The collector"} will be notified.` });
+      }
+      if (action === "export") {
+        toast.success("Record exported", { description: "A summary export would be generated here in production." });
+      }
+    } catch (err) {
+      toast.error("Action failed", { description: err instanceof Error ? err.message : undefined });
     }
-    if (action === "reassign" && collector) {
-      taskStoreActions.reassignCollector(selectedTask.id, collector, now);
-      toast.success("Collector reassigned", { description: `${selectedTask.title} is now with ${collector}.` });
-    }
-    if (action === "cancel") {
-      taskStoreActions.cancelTask(selectedTask.id, now);
-      toast("Task canceled", { description: `${selectedTask.title} was canceled.` });
-      setDrawerOpen(false);
-    }
-    if (action === "resubmit") {
-      taskStoreActions.requestResubmission(selectedTask.id, now);
-      toast.success("Resubmission requested", { description: `${selectedTask.assignee ?? "The collector"} will be notified.` });
-    }
-    if (action === "export") {
-      toast.success("Record exported", { description: "A summary export would be generated here in production." });
-    }
-    const refreshed = tasks.find((t) => t.id === selectedTask.id);
-    if (refreshed) setSelectedTask(refreshed);
   }
 
-  function confirmQuickCancel() {
+  async function confirmQuickCancel() {
     if (!cancelTargetId) return;
-    taskStoreActions.cancelTask(cancelTargetId, nowIso());
-    toast("Task canceled");
-    setCancelTargetId(null);
+    try {
+      await taskStoreActions.cancelTask(cancelTargetId);
+      toast("Task canceled");
+    } catch (err) {
+      toast.error("Failed to cancel task", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setCancelTargetId(null);
+    }
   }
 
   const liveSelectedTask = selectedTask ? tasks.find((t) => t.id === selectedTask.id) ?? selectedTask : null;
@@ -241,11 +266,7 @@ function TasksPage() {
             <SelectTrigger className="h-9 w-32"><SelectValue placeholder="Zone" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All zones</SelectItem>
-              <SelectItem value="North">North</SelectItem>
-              <SelectItem value="South">South</SelectItem>
-              <SelectItem value="East">East</SelectItem>
-              <SelectItem value="West">West</SelectItem>
-              <SelectItem value="Central">Central</SelectItem>
+              {zoneNames.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={priority} onValueChange={(v) => setPriority(v as Priority | "all")}>
@@ -278,7 +299,28 @@ function TasksPage() {
         </div>
 
         {/* Table */}
-        {tasks.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3 rounded-md border border-border bg-card p-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center rounded-md border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+            <h3 className="mt-2 text-sm font-semibold text-destructive">Failed to load tasks</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => taskStoreActions.refresh()}>Retry</Button>
+          </div>
+        ) : tasks.length === 0 ? (
           <EmptyState
             title="No tasks yet"
             description="Create your first cleanup task to start assigning field work."
@@ -367,6 +409,7 @@ function TasksPage() {
         onOpenChange={(open) => { setCreateOpen(open); if (!open) setEditingTask(null); }}
         editingTask={editingTask}
         collectorOptions={assignableCollectorNames}
+        zoneNames={zoneNames}
         onCreate={handleCreate}
         onEdit={handleEdit}
       />
