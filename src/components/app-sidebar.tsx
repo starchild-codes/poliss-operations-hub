@@ -1,60 +1,108 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ShieldCheck } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  ClipboardList,
+  ShieldCheck,
+  Users,
+  BarChart3,
+  Settings,
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarFooter,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import polisLogo from "@/assets/polis-logo.jpeg.asset.json";
 
 const nav = [
-  { title: "Overview", url: "/overview" },
-  { title: "Review", url: "/review" },
+  { title: "Overview", url: "/overview", icon: LayoutDashboard },
+  { title: "Tasks", url: "/tasks", icon: ClipboardList },
+  { title: "Review", url: "/review", icon: ShieldCheck },
+  { title: "Collectors", url: "/collectors", icon: Users },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Settings", url: "/settings", icon: Settings },
 ] as const;
 
-export function AppSidebar({ collapsed }: { collapsed: boolean }) {
+export function AppSidebar() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
 
   return (
-    <aside
-      className={cn(
-        "flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200",
-        collapsed ? "w-[var(--sidebar-width-icon)]" : "w-[var(--sidebar-width)]",
-      )}
-    >
-      <div className="flex items-center gap-2.5 border-b border-sidebar-border px-3 py-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/10">
-          <ShieldCheck className="h-5 w-5 text-white" />
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
+        <div className="flex items-center gap-2.5 px-1.5 py-2">
+          <img
+            src={polisLogo.url}
+            alt="Polis Systems logo"
+            className="h-9 w-9 shrink-0 rounded-full bg-white object-contain p-0.5 ring-1 ring-sidebar-border"
+          />
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold tracking-tight text-white">
+                Polis Systems
+              </div>
+              <div className="truncate text-[11px] text-sidebar-foreground/70">
+                Operations Platform
+              </div>
+            </div>
+          )}
         </div>
+      </SidebarHeader>
+
+      <SidebarContent className="bg-sidebar">
+        <SidebarGroup>
+          {!collapsed && (
+            <SidebarGroupLabel className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/60">
+              Workspace
+            </SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {nav.map((item) => {
+                const active =
+                  item.url === "/overview" ? pathname === "/overview" : pathname.startsWith(item.url);
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={item.title}
+                      className={
+                        "group h-9 rounded-md text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-white data-[active=true]:bg-transparent data-[active=true]:text-white " +
+                        (active
+                          ? "relative before:absolute before:left-0 before:top-1.5 before:h-6 before:w-[3px] before:rounded-r before:bg-info"
+                          : "")
+                      }
+                    >
+                      <Link to={item.url} className="flex items-center gap-2.5">
+                        <item.icon className="h-[17px] w-[17px] shrink-0" />
+                        <span className="text-[13px] font-medium">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar">
         {!collapsed && (
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-white">Polis Systems</div>
-            <div className="truncate text-[11px] text-sidebar-foreground/60">Operations Platform</div>
+          <div className="px-2 py-2 text-[11px] text-sidebar-foreground/60">
+            Bengaluru pilot · v0.1
           </div>
         )}
-      </div>
-
-      <nav className="flex-1 space-y-0.5 p-2">
-        {nav.map((item) => {
-          const active = pathname === item.url || pathname.startsWith(item.url + "/");
-          return (
-            <Link
-              key={item.url}
-              to={item.url}
-              className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
-                active
-                  ? "bg-white/10 text-white"
-                  : "text-sidebar-foreground/80 hover:bg-white/5 hover:text-white",
-              )}
-            >
-              {collapsed && <span className="mx-auto">{item.title[0]}</span>}
-              {!collapsed && item.title}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {!collapsed && (
-        <div className="border-t border-sidebar-border px-3 py-2 text-[11px] text-sidebar-foreground/50">
-          Bengaluru pilot · v0.1
-        </div>
-      )}
-    </aside>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
