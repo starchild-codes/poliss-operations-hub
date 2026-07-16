@@ -1,124 +1,106 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type ProfileRole = "admin" | "operator" | "pending";
+export type UserRole = "admin" | "operator" | "pending";
 
-export type Profile = {
+interface Profile {
   id: string;
   email: string | null;
   full_name: string | null;
-  avatar_url: string | null;
-  role: ProfileRole;
-};
+  role: UserRole;
+}
 
-export type AuthContextType = {
+export interface AuthContextType {
+  loading: boolean;
   session: Session | null;
   user: User | null;
   profile: Profile | null;
-  loading: boolean;
-  /** True while we're loading the profile row for the current session. */
   profileLoading: boolean;
-  /** True when session exists AND profile.role is admin or operator. */
   isAuthorized: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, avatar_url, role")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) {
-    console.error("Failed to load profile:", error.message);
-    return null;
-  }
-  return (data as Profile | null) ?? null;
 }
 
+const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const loadProfileFor = useCallback(async (userId: string | null) => {
-    if (!userId) {
+  const user = session?.user ?? null;
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setLoading(false);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
       setProfile(null);
       return;
     }
     setProfileLoading(true);
-    const p = await fetchProfile(userId);
-    setProfile(p);
-    setProfileLoading(false);
-  }, []);
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (error) {
+        setProfile(null);
+      } else {
+        setProfile(data as Profile | null);
+      }
+      setProfileLoading(false);
+    })();
+  }, [user]);
 
-  const refreshProfile = useCallback(async () => {
-    if (!session?.user) return;
-    await loadProfileFor(session.user.id);
-  }, [session?.user, loadProfileFor]);
+  const isAuthorized = profile?.role === "admin" || profile?.role === "operator";
 
-  useEffect(() => {
-    let mounted = true;
+  async function signIn(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  }
 
-    // Register listener FIRST, then read the current session.
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        if (!mounted) return;
-        setSession(newSession);
-        // Defer async work to avoid deadlocks inside the listener.
-        setTimeout(() => {
-          if (!mounted) return;
-          void loadProfileFor(newSession?.user?.id ?? null);
-        }, 0);
-      },
-    );
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setLoading(false);
-      void loadProfileFor(data.session?.user?.id ?? null);
+  async function signUp(email: string, password: string, fullName?: string) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
     });
+    return { error: error?.message ?? null };
+  }
 
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [loadProfileFor]);
-
-  const signOut = useCallback(async () => {
+  async function signOut() {
     await supabase.auth.signOut();
-    setSession(null);
     setProfile(null);
-  }, []);
-
-  const isAuthorized = Boolean(
-    session && (profile?.role === "admin" || profile?.role === "operator"),
-  );
+  }
 
   return (
     <AuthContext.Provider
       value={{
-        session,
-        user: session?.user ?? null,
-        profile,
         loading,
+        session,
+        user,
+        profile,
         profileLoading,
         isAuthorized,
+        signIn,
+        signUp,
         signOut,
-        refreshProfile,
       }}
     >
       {children}

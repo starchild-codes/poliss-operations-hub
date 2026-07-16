@@ -7,7 +7,7 @@ import { defineMcp } from "npm:@lovable.dev/mcp-js@0.22.2";
 
 // src/lib/mcp/tools/list-collectors.ts
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z } from "npm:zod@^3.25.76";
+import { z } from "npm:zod";
 
 // src/lib/mock-data.ts
 var PRIORITIES = ["low", "medium", "high", "urgent"];
@@ -223,7 +223,7 @@ var list_collectors_default = defineTool({
 
 // src/lib/mcp/tools/list-tasks.ts
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z2 } from "npm:zod@^3.25.76";
+import { z as z2 } from "npm:zod";
 var TASK_STATUSES = [
   "open",
   "assigned",
